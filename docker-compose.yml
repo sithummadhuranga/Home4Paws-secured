@@ -6,8 +6,6 @@ services:
       dockerfile: docker/Dockerfile.frontend
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5000
     depends_on:
       - backend
 
@@ -16,15 +14,16 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     ports:
-      - "5000:80"
+      - "5185:80"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=UTF8{DATABASE_URL}
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=home4paws_dev;Username=postgres;Password=password
     depends_on:
       - postgres
 
   postgres:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.4-alpine
     ports:
       - "5432:5432"
     environment:

@@ -4,16 +4,13 @@ EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY backend/Home4Paws.sln .
-COPY backend/Home4Paws.API/Home4Paws.API.csproj Home4Paws.API/
-COPY backend/Home4Paws.Core/Home4Paws.Core.csproj Home4Paws.Core/
-COPY backend/Home4Paws.Infrastructure/Home4Paws.Infrastructure.csproj Home4Paws.Infrastructure/
-RUN dotnet restore
+COPY backend/Home4Paws.API.csproj .
+RUN dotnet restore Home4Paws.API.csproj
 COPY backend/ .
-RUN dotnet build -c Release -o /app/build
+RUN dotnet build Home4Paws.API.csproj -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish Home4Paws.API/Home4Paws.API.csproj -c Release -o /app/publish
+RUN dotnet publish Home4Paws.API.csproj -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
