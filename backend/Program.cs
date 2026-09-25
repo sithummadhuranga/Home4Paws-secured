@@ -197,6 +197,21 @@ logger.LogInformation("═══════════════════
 // Add Global Exception Middleware
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+// Security headers on every response. The CSP is scoped to /api so it doesn't fight
+// with Swagger's own page, which needs to run its own inline scripts to render
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-site";
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
+    }
+    await next();
+});
+
 // Configure the HTTP request pipeline
 var enableSwagger = builder.Configuration.GetValue<bool>("Features:EnableSwagger", false);
 
