@@ -217,7 +217,14 @@ else
 app.UseRouting();
 
 // Configure static file serving
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Stop browsers from guessing a different content type for uploaded files
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    }
+});
 
 // Add Authentication & Authorization (AFTER CORS)
 app.UseAuthentication();

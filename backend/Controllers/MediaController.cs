@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Home4Paws.API.Helpers;
 
 namespace Home4Paws.API.Controllers
 {
@@ -51,7 +52,14 @@ namespace Home4Paws.API.Controllers
                     return BadRequest(new { message = $"Invalid file type for {file.FileName}. Allowed: jpg, jpeg, png" });
                 }
 
-                var name = $"{Guid.NewGuid()}{ext}";
+                // The extension alone can be faked, so check the file header too
+                var realExt = await ImageFileValidator.GetImageExtensionAsync(file);
+                if (realExt == null)
+                {
+                    return BadRequest(new { message = $"{file.FileName} is not a valid JPEG or PNG image" });
+                }
+
+                var name = $"{Guid.NewGuid()}{realExt}";
                 var path = Path.Combine(uploadsDir, name);
                 using (var stream = new FileStream(path, FileMode.Create))
                 {
