@@ -69,17 +69,14 @@ namespace Home4Paws.API.Helpers
             return Convert.ToBase64String(randomBytes);
         }
 
+        // This governs the refresh token / session lifetime, not the short-lived access
+        // token above - that's why it doesn't read ExpiryInMinutes anymore. A session should
+        // outlive the 15-minute access token whether or not "remember me" was ticked.
         public DateTime GetTokenExpiry(bool rememberMe = false)
         {
-            var expiryInMinutes = _configuration.GetValue<int>("JwtSettings:ExpiryInMinutes", 60);
-            
-            if (rememberMe)
-            {
-                // Extend expiry for "Remember Me" - 30 days
-                return DateTime.UtcNow.AddDays(30);
-            }
-            
-            return DateTime.UtcNow.AddMinutes(expiryInMinutes);
+            return rememberMe
+                ? DateTime.UtcNow.AddDays(30)
+                : DateTime.UtcNow.AddDays(1);
         }
 
         public ClaimsPrincipal? ValidateToken(string token)

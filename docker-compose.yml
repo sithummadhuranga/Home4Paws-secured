@@ -4,6 +4,13 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        # Kept relative so the browser calls its own origin (/api/...) and
+        # Next's rewrite proxies it server-side - see next.config.ts
+        NEXT_PUBLIC_API_URL: /api
+        # rewrites() is resolved at build time, so this has to be a build arg
+        # too, not just the runtime environment entry below
+        API_INTERNAL_URL: http://backend:80
     ports:
       - "3000:3000"
     depends_on:
@@ -19,6 +26,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=home4paws_dev;Username=postgres;Password=password
+      - Google__ClientId=${GOOGLE_CLIENT_ID}
+      - Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
+      - Google__RedirectUri=http://localhost:5185/api/auth/google/callback
     depends_on:
       - postgres
 

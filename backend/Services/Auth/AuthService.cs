@@ -55,6 +55,17 @@ namespace Home4Paws.API.Services.Auth
 
                 _logger.LogInformation("✅ User found: {UserId} ({Email})", user.Id, user.Email);
 
+                if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.UtcNow)
+                {
+                    var minutesLeft = (int)Math.Ceiling((user.LockoutEnd.Value - DateTime.UtcNow).TotalMinutes);
+                    _logger.LogWarning("❌ Login blocked - account locked: {Email}, unlocks in {Minutes} min", request.Email, minutesLeft);
+                    return new AuthResponse
+                    {
+                        Success = false,
+                        Message = $"Too many failed attempts. Try again in {minutesLeft} minute(s)."
+                    };
+                }
+
                 // Check if user is active
                 if (!user.IsActive)
                 {
@@ -95,6 +106,14 @@ namespace Home4Paws.API.Services.Auth
 
                 if (!isValid)
                 {
+                    user.FailedLoginAttempts += 1;
+                    if (user.FailedLoginAttempts >= 5)
+                    {
+                        user.LockoutEnd = DateTime.UtcNow.AddMinutes(15);
+                        _logger.LogWarning("🔒 Account locked after {Attempts} failed attempts: {Email}", user.FailedLoginAttempts, request.Email);
+                    }
+                    await _userRepository.UpdateUserAsync(user);
+
                     _logger.LogWarning("❌ Login failed - invalid password: {Email}", request.Email);
                     return new AuthResponse
                     {
@@ -104,6 +123,13 @@ namespace Home4Paws.API.Services.Auth
                 }
 
                 _logger.LogInformation("✅ Password verified for user: {Email}", request.Email);
+
+                if (user.FailedLoginAttempts != 0 || user.LockoutEnd != null)
+                {
+                    user.FailedLoginAttempts = 0;
+                    user.LockoutEnd = null;
+                    await _userRepository.UpdateUserAsync(user);
+                }
 
                 // Update last login time
                 try
@@ -139,6 +165,18 @@ namespace Home4Paws.API.Services.Auth
                     };
                 }
 
+                // expiresAt here is the refresh token's lifetime, not the access token's -
+                // the access token's own exp claim stays short regardless of remember-me
+                await _userRepository.CreateUserSessionAsync(new UserSession
+                {
+                    UserId = user.Id,
+                    Token = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = expiresAt,
+                    DeviceInfo = request.DeviceInfo,
+                    IpAddress = ipAddress
+                });
+
                 _logger.LogInformation("🎉 Login successful for user: {UserId} ({Email})", user.Id, user.Email);
 
                 // Return successful response
@@ -155,7 +193,8 @@ namespace Home4Paws.API.Services.Auth
                         Role = user.Role,
                         EmailVerified = user.EmailVerified,
                         CreatedAt = user.CreatedAt,
-                        LastLoginAt = DateTime.UtcNow
+                        LastLoginAt = DateTime.UtcNow,
+                        AuthProvider = user.AuthProvider
                     },
                     Tokens = new TokenInfo
                     {
@@ -241,6 +280,16 @@ namespace Home4Paws.API.Services.Auth
                 var refreshToken = _jwtHelper.GenerateRefreshToken();
                 var expiresAt = _jwtHelper.GetTokenExpiry(false);
 
+                await _userRepository.CreateUserSessionAsync(new UserSession
+                {
+                    UserId = user.Id,
+                    Token = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = expiresAt,
+                    DeviceInfo = request.DeviceInfo,
+                    IpAddress = ipAddress
+                });
+
                 _logger.LogInformation("✅ Signup successful for user: {UserId} ({Email})", userId, user.Email);
 
                 return new AuthResponse
@@ -255,7 +304,8 @@ namespace Home4Paws.API.Services.Auth
                         Email = user.Email,
                         Role = user.Role,
                         EmailVerified = user.EmailVerified,
-                        CreatedAt = user.CreatedAt
+                        CreatedAt = user.CreatedAt,
+                        AuthProvider = user.AuthProvider
                     },
                     Tokens = new TokenInfo
                     {
@@ -276,14 +326,76 @@ namespace Home4Paws.API.Services.Auth
             }
         }
 
-        public async Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request, string ipAddress)
+        public async Task<AuthResponse> RefreshTokenAsync(string refreshToken, string ipAddress)
         {
             try
             {
+                if (string.IsNullOrEmpty(refreshToken))
+                {
+                    return new AuthResponse { Success = false, Message = "Invalid or expired refresh token." };
+                }
+
+                var session = await _userRepository.GetUserSessionAsync(refreshToken);
+                if (session == null || session.ExpiresAt < DateTime.UtcNow)
+                {
+                    if (session != null)
+                    {
+                        await _userRepository.DeactivateUserSessionAsync(refreshToken);
+                    }
+                    return new AuthResponse { Success = false, Message = "Invalid or expired refresh token." };
+                }
+
+                var user = await _userRepository.GetUserByIdAsync(session.UserId);
+                if (user == null || !user.IsActive)
+                {
+                    await _userRepository.DeactivateUserSessionAsync(refreshToken);
+                    return new AuthResponse { Success = false, Message = "Invalid or expired refresh token." };
+                }
+
+                // Rotation: the old refresh token is retired the moment a new one is issued,
+                // so a stolen-and-replayed token stops working as soon as the real client refreshes
+                await _userRepository.DeactivateUserSessionAsync(refreshToken);
+
+                var newAccessToken = _jwtHelper.GenerateJwtToken(user);
+                var newRefreshToken = _jwtHelper.GenerateRefreshToken();
+
+                // Keep whatever session length the original login chose (remember-me or not)
+                // instead of resetting everyone to the same default on every refresh
+                var sessionLength = session.ExpiresAt - session.CreatedAt;
+                var newExpiresAt = DateTime.UtcNow.Add(sessionLength);
+
+                await _userRepository.CreateUserSessionAsync(new UserSession
+                {
+                    UserId = user.Id,
+                    Token = newAccessToken,
+                    RefreshToken = newRefreshToken,
+                    ExpiresAt = newExpiresAt,
+                    DeviceInfo = session.DeviceInfo,
+                    IpAddress = ipAddress
+                });
+
                 return new AuthResponse
                 {
-                    Success = false,
-                    Message = "Invalid or expired refresh token."
+                    Success = true,
+                    Message = "Token refreshed",
+                    User = new UserInfo
+                    {
+                        Id = user.Id,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName,
+                        Email = user.Email,
+                        Role = user.Role,
+                        EmailVerified = user.EmailVerified,
+                        CreatedAt = user.CreatedAt,
+                        LastLoginAt = user.LastLoginAt,
+                        AuthProvider = user.AuthProvider
+                    },
+                    Tokens = new TokenInfo
+                    {
+                        AccessToken = newAccessToken,
+                        RefreshToken = newRefreshToken,
+                        ExpiresAt = newExpiresAt
+                    }
                 };
             }
             catch (Exception ex)
@@ -297,10 +409,23 @@ namespace Home4Paws.API.Services.Auth
             }
         }
 
-        public async Task<LogoutResponse> LogoutAsync(LogoutRequest request)
+        public async Task<LogoutResponse> LogoutAsync(string? refreshToken, bool logoutFromAllDevices)
         {
             try
             {
+                if (logoutFromAllDevices && !string.IsNullOrEmpty(refreshToken))
+                {
+                    var session = await _userRepository.GetUserSessionAsync(refreshToken);
+                    if (session != null)
+                    {
+                        await _userRepository.DeactivateAllUserSessionsAsync(session.UserId);
+                    }
+                }
+                else if (!string.IsNullOrEmpty(refreshToken))
+                {
+                    await _userRepository.DeactivateUserSessionAsync(refreshToken);
+                }
+
                 return new LogoutResponse
                 {
                     Success = true,
@@ -338,7 +463,8 @@ namespace Home4Paws.API.Services.Auth
                     Role = user.Role,
                     EmailVerified = user.EmailVerified,
                     CreatedAt = user.CreatedAt,
-                    LastLoginAt = user.LastLoginAt
+                    LastLoginAt = user.LastLoginAt,
+                    AuthProvider = user.AuthProvider
                 };
             }
             catch (Exception ex)

@@ -6,12 +6,11 @@ import { Product, ProductFormData, Category } from '@/types';
 // Use the EXACT same logic as AuthContext.tsx to get the API URL.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
-// This function gets the authentication token from localStorage
-// It's a helper to avoid repeating this logic everywhere.
-const getAuthHeaders = (token: string) => ({
+// The access token lives in an httpOnly cookie, so authenticated requests just
+// need credentials: 'include' - there's no header for us to attach anymore.
+const authHeaders = {
   'Content-Type': 'application/json',
-  'Authorization': `Bearer ${token}`
-});
+};
 
 
 // --- Product Service Functions ---
@@ -56,31 +55,34 @@ export const getProductById = async (id: number): Promise<Product | null> => {
   }
 };
 
-// These functions are for ADMINS ONLY, so they REQUIRE a token.
-export const createProduct = async (data: ProductFormData, token: string): Promise<Product> => {
+// These functions are for ADMINS ONLY, so they REQUIRE the session cookie.
+export const createProduct = async (data: ProductFormData): Promise<Product> => {
   const response = await fetch(`${API_BASE_URL}/products`, {
     method: 'POST',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: authHeaders,
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error('Failed to create product');
   return response.json();
 };
 
-export const updateProduct = async (id: number, data: ProductFormData, token: string): Promise<Response> => {
+export const updateProduct = async (id: number, data: ProductFormData): Promise<Response> => {
   const response = await fetch(`${API_BASE_URL}/products/${id}`, {
     method: 'PUT',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: authHeaders,
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error('Failed to update product');
   return response;
 };
 
-export const deleteProduct = async (id: number, token: string): Promise<Response> => {
+export const deleteProduct = async (id: number): Promise<Response> => {
   const response = await fetch(`${API_BASE_URL}/products/${id}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: authHeaders,
   });
   if (!response.ok) throw new Error('Failed to delete product');
   return response;

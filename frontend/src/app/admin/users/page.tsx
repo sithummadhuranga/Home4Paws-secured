@@ -65,7 +65,7 @@ interface UsersStats {
 }
 
 export default function AdminUsersPage() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<UsersStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,15 +75,15 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     const fetchUsers = async () => {
-      if (!token) return;
+      if (!isAuthenticated) return;
 
       try {
         setIsLoading(true);
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
-        
+
         const response = await fetch(`${API_BASE_URL}/dev/users`, {
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
@@ -124,7 +124,7 @@ export default function AdminUsersPage() {
     };
 
     fetchUsers();
-  }, [token]);
+  }, [isAuthenticated]);
 
   // Filter users based on search and filters
   const filteredUsers = users.filter((user) => {

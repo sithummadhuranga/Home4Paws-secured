@@ -6,8 +6,10 @@ using Home4Paws.API.Helpers;
 using Home4Paws.API.Middleware;
 // using Home4Paws.API.Services.Pet; // Removed because the namespace 'Pet' does not exist
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.RateLimiting;
 using Home4Paws.API.Data;
 using Home4Paws.API.Services.Pets; 
 using Home4Paws.API.Services.Adoption;
@@ -77,7 +79,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secretKey)),
             ClockSkew = TimeSpan.Zero
         };
+
+        // The frontend no longer sends an Authorization header - the access token
+        // lives in an httpOnly cookie instead, so pull it from there when present
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrEmpty(context.Token) && context.Request.Cookies.TryGetValue("h4p_at", out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
+
+// Login gets its own limiter so a brute-force attempt can't just be spread across
+// endpoints, without throttling normal use of the rest of the API
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("login", limiterOptions =>
+    {
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.PermitLimit = 10;
+        limiterOptions.QueueLimit = 0;
+    });
+    options.OnRejected = (context, _) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        return new ValueTask();
+    };
+});
 
 // Add Entity Framework with PostgreSQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -164,6 +197,21 @@ logger.LogInformation("═══════════════════
 // Add Global Exception Middleware
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+// Security headers on every response. The CSP is scoped to /api so it doesn't fight
+// with Swagger's own page, which needs to run its own inline scripts to render
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-site";
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
+    }
+    await next();
+});
+
 // Configure the HTTP request pipeline
 var enableSwagger = builder.Configuration.GetValue<bool>("Features:EnableSwagger", false);
 
@@ -230,6 +278,7 @@ app.UseStaticFiles(new StaticFileOptions
 // Add Authentication & Authorization (AFTER CORS)
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 // Map Controllers
 app.MapControllers();

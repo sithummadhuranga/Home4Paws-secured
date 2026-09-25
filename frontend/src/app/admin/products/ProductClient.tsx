@@ -11,19 +11,19 @@ import Link from "next/link";
 
 export function ProductClient({ initialProducts }: { initialProducts: Product[] }) {
   const [products, setProducts] = useState(initialProducts);
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
 
-    if (!token) {
+    if (!isAuthenticated) {
       toast({ title: "Error", description: "You are not authenticated.", variant: "destructive" });
       return;
     }
 
     try {
-      await deleteProduct(id, token);
+      await deleteProduct(id);
       setProducts(products.filter(p => p.id !== id));
       toast({ title: "Success", description: "Product deleted successfully." });
     } catch (_error) {

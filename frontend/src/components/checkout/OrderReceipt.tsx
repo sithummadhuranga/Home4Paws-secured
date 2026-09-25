@@ -30,7 +30,7 @@ export function OrderReceipt({ orderId, orderDate = new Date().toISOString() }: 
   const [isLoading, setIsLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { token, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { cartItems, orderSummary, shippingAddress } = useCart();
 
   // Convert USD to LKR
@@ -59,16 +59,16 @@ export function OrderReceipt({ orderId, orderDate = new Date().toISOString() }: 
   // Fetch order details from backend
   useEffect(() => {
     const fetchOrderDetails = async () => {
-      if (!token || !orderId) return;
+      if (!isAuthenticated || !orderId) return;
 
       try {
         setIsLoading(true);
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
-        
+
         console.log('📦 Fetching order details for:', orderId);
         const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
@@ -89,7 +89,7 @@ export function OrderReceipt({ orderId, orderDate = new Date().toISOString() }: 
     };
 
     fetchOrderDetails();
-  }, [orderId, token]);
+  }, [orderId, isAuthenticated]);
 
   const handleDownload = async () => {
     if (!receiptRef.current || !order) return;

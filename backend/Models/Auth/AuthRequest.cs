@@ -46,12 +46,6 @@ namespace Home4Paws.API.Models.Auth
         public string? DeviceInfo { get; set; }
     }
 
-    public class RefreshTokenRequest
-    {
-        [Required(ErrorMessage = "Refresh token is required")]
-        public string RefreshToken { get; set; } = string.Empty;
-    }
-
     public class LogoutRequest
     {
         public string? RefreshToken { get; set; }
