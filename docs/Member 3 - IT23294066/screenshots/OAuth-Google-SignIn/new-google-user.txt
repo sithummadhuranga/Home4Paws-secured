@@ -1,0 +1,5 @@
+ id |           email           | role | email_verified | auth_provider |          created_at           
+----+---------------------------+------+----------------+---------------+-------------------------------
+  4 | sithummadhu.dev@gmail.com | User | t              | Google        | 2026-09-25 20:02:44.595546+00
+(1 row)
+

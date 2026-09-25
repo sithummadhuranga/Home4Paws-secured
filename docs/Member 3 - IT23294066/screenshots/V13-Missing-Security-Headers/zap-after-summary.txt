@@ -1,0 +1,20 @@
+ZAP baseline scan - AFTER fix
+
+Frontend (http://localhost:3000):
+- "Content Security Policy (CSP) Header Not Set [10038]" is GONE (was present before).
+- New WARN: "CSP: script-src unsafe-eval [10055]" - expected trade-off, documented
+  in next.config.ts: Next.js App Router needs 'unsafe-inline' for hydration
+  scripts, and this build also needs 'unsafe-eval'. A nonce-based CSP via
+  middleware would close this but is a bigger change than this fix calls for.
+(full detail: zap-frontend-after.html)
+
+Backend API (http://localhost:5185/api/info):
+- "X-Content-Type-Options Header Missing [10021]" is GONE (was present before).
+- "Cross-Origin-Resource-Policy Header Missing or Invalid [90004]" still shown -
+  CORP is set to "same-site" (confirmed via curl), not "same-origin", because
+  the frontend on a different port needs to fetch this API; same-origin would
+  break that. Treating ZAP's want for same-origin as not applicable here.
+- "Storable and Cacheable Content [10049]" - Cache-Control not set on this
+  endpoint; not part of V13's original header set, noted as a possible
+  follow-up, not fixed here.
+(full detail: zap-backend-after.html)
