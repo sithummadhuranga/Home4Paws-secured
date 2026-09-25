@@ -124,7 +124,7 @@ builder.Services.AddScoped<IPetListingService, PetListingService>();
 builder.Services.AddScoped<IPetInquiryService, PetInquiryService>();
 
 // Register AutoMapper
-builder.Services.AddAutoMapper(typeof(MappingProfiles));
+builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(MappingProfiles)));
 // Register Pet Services
 builder.Services.AddScoped<IPetReportService, PetReportService>();
 builder.Services.AddScoped<ILocationSearchService, LocationSearchService>();
