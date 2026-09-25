@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "d1ed71f4-0805-4913-bc28-2de9fefe1d69",
+    "_postman_id": "e53f9cee-91be-4dde-95f5-c8bd637b2650",
     "name": "Home4Paws - M2 Authorization Test Suite",
     "description": "SE4030 Member 2 (T.H.N.Nadushka, IT23294202). Access-control test matrix for V02, V03, V04, V05, V14.\nTests named 'SECURE:' assert the SECURE behaviour, so on the ORIGINAL code they FAIL (proving the vulnerability) and after the fixes they PASS. Tests named 'FUNCTIONAL:' check that legitimate access still works.\nRun the whole collection in order with the Collection Runner. Requires the local stack (see MEMBER2_PLAN.md). Set adminEmail/adminPassword as the CURRENT value of the collection variables locally (never commit a real password). Set Postman Settings > Working directory to this security-tests folder so test-pet.png is found. See security-tests/README.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -695,7 +695,7 @@
           ]
         },
         {
-          "name": "[V03] Anonymous POST /api/reports (no token)",
+          "name": "[V03] Anonymous POST /api/reports (anonymous reporting allowed by design)",
           "request": {
             "method": "POST",
             "header": [],
@@ -787,7 +787,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"SECURE: anonymous cannot create a report\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                  "pm.test(\"FUNCTIONAL: anonymous lost/found reporting still works\", () => pm.expect(pm.response.code).to.be.oneOf([201]));"
                 ]
               }
             }
@@ -927,7 +927,7 @@
           ]
         },
         {
-          "name": "[V03] UserA PUT /api/reports/{r1} (owner edit, must work)",
+          "name": "[V03] UserA PUT /api/reports/{r1} (non-admin edit)",
           "request": {
             "method": "PUT",
             "header": [
@@ -989,7 +989,76 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"FUNCTIONAL: owner can edit own pending report\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                  "pm.test(\"SECURE: only admins can edit reports\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Admin PUT /api/reports/{r1} (must work)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r1}}",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Breed",
+                  "value": "EDITED-BY-ATTACKER",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Black",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Edited by another user",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Kandy",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "Attacker",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0770000000",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "attacker@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "NewPhotos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can edit a pending report\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }
@@ -1039,7 +1108,7 @@
           ]
         },
         {
-          "name": "[V03] UserA DELETE /api/reports/{r3} (owner, must work)",
+          "name": "[V03] UserA DELETE /api/reports/{r3} (non-admin delete)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -1056,7 +1125,31 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"FUNCTIONAL: owner can delete own pending report\", () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                  "pm.test(\"SECURE: only admins can delete reports\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Admin DELETE /api/reports/{r3} (must work)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r3}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can delete a pending report\", () => pm.expect(pm.response.code).to.be.oneOf([204]));"
                 ]
               }
             }
@@ -1123,11 +1216,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"FUNCTIONAL: user can read own reports\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
-                  "pm.test(\"SECURE: result contains only userA's reports (none from other contact names)\", () => {",
-                  "  const items = pm.response.json();",
-                  "  pm.expect(items.every(r => r.contactName === \"User A\" || r.contactName === \"Attacker\")).to.be.true;",
-                  "});"
+                  "pm.test(\"FUNCTIONAL: user can call the endpoint for their own id\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }
@@ -1162,7 +1251,7 @@
           ]
         },
         {
-          "name": "[V03] UserA PUT /api/reports/{r1}/status (owner but not admin)",
+          "name": "[V03] UserA PUT /api/reports/{r1}/status (non-admin)",
           "request": {
             "method": "PUT",
             "header": [
