@@ -67,40 +67,45 @@ namespace Home4Paws.API.Controllers
             }
         }
 
-        /// <summary>
-        /// List all users (Development only or Admin in production)
-        /// </summary>
-        [HttpGet("users")]
-        public async Task<IActionResult> GetUsers()
-        {
-            try
-            {
-                // Get all users from database using Entity Framework
-                var users = await _context.Users
-                    .OrderByDescending(u => u.CreatedAt)
-                    .Select(u => new
-                    {
-                        u.Id,
-                        u.FirstName,
-                        u.LastName,
-                        u.Email,
-                        u.Role,
-                        u.IsActive,
-                        u.EmailVerified,
-                        u.CreatedAt,
-                        u.LastLoginAt
-                    })
-                    .ToListAsync();
-
-                _logger.LogInformation("Retrieved {Count} users", users.Count);
-                return Ok(users);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting users");
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-        }
+        // ---- CODE BEFORE FIX (V02) ----
+        // /// <summary>
+        // /// List all users (Development only or Admin in production)
+        // /// </summary>
+        // [HttpGet("users")]
+        // public async Task<IActionResult> GetUsers()
+        // {
+        //     try
+        //     {
+        //         // Get all users from database using Entity Framework
+        //         var users = await _context.Users
+        //             .OrderByDescending(u => u.CreatedAt)
+        //             .Select(u => new
+        //             {
+        //                 u.Id,
+        //                 u.FirstName,
+        //                 u.LastName,
+        //                 u.Email,
+        //                 u.Role,
+        //                 u.IsActive,
+        //                 u.EmailVerified,
+        //                 u.CreatedAt,
+        //                 u.LastLoginAt
+        //             })
+        //             .ToListAsync();
+        //
+        //         _logger.LogInformation("Retrieved {Count} users", users.Count);
+        //         return Ok(users);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error getting users");
+        //         return BadRequest(new { success = false, message = ex.Message });
+        //     }
+        // }
+        // ---- END CODE BEFORE FIX (V02) ----
+        // ---- FIXED (V02): GET /api/dev/users had no [Authorize] and no environment check, so
+        // anyone could list every user's name, email, role and last login. Removed here and
+        // replaced by the Admin-only GET /api/admin/users in AdminUsersController. ----
 
         /// <summary>
         /// Health check endpoint

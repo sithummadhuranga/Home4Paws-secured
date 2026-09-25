@@ -124,7 +124,11 @@ export default function AnalyticsPage() {
         fetch(`${API_BASE_URL}/products`, {
           headers: { 'Content-Type': 'application/json' },
         }),
-        fetch(`${API_BASE_URL}/dev/users`, {
+        // ---- CODE BEFORE FIX (V02) ----
+        // fetch(`${API_BASE_URL}/dev/users`, {
+        // ---- END CODE BEFORE FIX (V02) ----
+        // ---- FIXED (V02): the public dev endpoint was removed; use the Admin-only endpoint ----
+        fetch(`${API_BASE_URL}/admin/users`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
