@@ -50,7 +50,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, isLoading, token } = useAuth()
+  const { user, isAuthenticated, isLoading } = useAuth()
   const [addresses, setAddresses] = React.useState<SavedAddress[]>([])
   const [defaultAddress, setDefaultAddress] = React.useState<SavedAddress | null>(null)
   const [orders, setOrders] = React.useState<Order[]>([])
@@ -69,8 +69,8 @@ export default function ProfilePage() {
 
   React.useEffect(() => {
     const loadProfileData = async () => {
-      if (!token || !isAuthenticated) {
-        console.log('Skipping profile data loading - not authenticated or no token');
+      if (!isAuthenticated) {
+        console.log('Skipping profile data loading - not authenticated');
         setLoadingAddresses(false)
         setLoadingOrders(false)
         setLoadingStats(false)
@@ -88,8 +88,8 @@ export default function ProfilePage() {
         setLoadingAddresses(true)
         try {
           const [addressesData, defaultData] = await Promise.allSettled([
-            getUserAddresses(token),
-            getDefaultAddress(token)
+            getUserAddresses(),
+            getDefaultAddress()
           ])
           
           if (addressesData.status === 'fulfilled') {
@@ -113,7 +113,7 @@ export default function ProfilePage() {
         // Load orders
         setLoadingOrders(true)
         try {
-          const ordersData = await getUserOrders(token)
+          const ordersData = await getUserOrders()
           setOrders(ordersData)
           console.log('Loaded orders:', ordersData.length);
         } catch (err) {
@@ -124,7 +124,7 @@ export default function ProfilePage() {
         // Load stats
         setLoadingStats(true)
         try {
-          const statsData = await getUserStats(token)
+          const statsData = await getUserStats()
           setStats(statsData)
           console.log('Loaded stats:', statsData);
         } catch (err) {
@@ -135,7 +135,7 @@ export default function ProfilePage() {
         // Load feedbacks
         setLoadingFeedbacks(true)
         try {
-          const feedbacksData = await getMyFeedbacks(token)
+          const feedbacksData = await getMyFeedbacks()
           setFeedbacks(feedbacksData)
           console.log('Loaded feedbacks:', feedbacksData.length);
         } catch (err) {
@@ -147,9 +147,7 @@ export default function ProfilePage() {
         setLoadingPetReports(true)
         try {
           const response = await fetch(`http://localhost:5185/api/reports/user/${user?.id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+            credentials: 'include',
           })
           if (response.ok) {
             const petReportsData = await response.json()
@@ -175,14 +173,14 @@ export default function ProfilePage() {
     if (isAuthenticated && !isLoading && user) {
       loadProfileData()
     }
-  }, [isAuthenticated, token, isLoading, user])
+  }, [isAuthenticated, isLoading, user])
 
   const handleCancelOrder = async (orderId: number) => {
-    if (!token) return
+    if (!isAuthenticated) return
 
     try {
       setCancellingOrder(orderId)
-      await cancelOrder(token, orderId)
+      await cancelOrder(orderId)
       
       // Update orders list
       setOrders(prev => prev.map(order => 
@@ -201,13 +199,13 @@ export default function ProfilePage() {
   }
 
   const handleDeleteFeedback = async (feedbackId: number) => {
-    if (!token) return
+    if (!isAuthenticated) return
 
     if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) return
 
     try {
       setDeletingFeedback(feedbackId)
-      await deleteFeedback(token, feedbackId)
+      await deleteFeedback(feedbackId)
       
       // Update feedbacks list
       setFeedbacks(prev => prev.filter(feedback => feedback.id !== feedbackId))

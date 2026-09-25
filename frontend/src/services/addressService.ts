@@ -2,22 +2,24 @@ import { SavedAddress, CreateUpdateAddressDto } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
-const getAuthHeaders = (token: string) => ({
+// The access token lives in an httpOnly cookie, so every call below pairs this
+// with credentials: 'include' instead of an Authorization header
+const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
-  'Authorization': `Bearer ${token}`
 });
 
-export const getUserAddresses = async (token: string): Promise<SavedAddress[]> => {
+export const getUserAddresses = async (): Promise<SavedAddress[]> => {
   try {
     console.log('Fetching user addresses...');
     const response = await fetch(`${API_BASE_URL}/useraddresses`, {
-      headers: getAuthHeaders(token),
+      credentials: 'include',
+      headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
-        console.error('Unauthorized - Invalid or expired token');
+        console.error('Unauthorized - session expired');
         throw new Error('Please log in again');
       }
       if (response.status === 404) {
@@ -27,7 +29,7 @@ export const getUserAddresses = async (token: string): Promise<SavedAddress[]> =
       console.error(`Failed to fetch addresses: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch addresses: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log('Successfully loaded addresses:', data.length);
     return Array.isArray(data) ? data : [];
@@ -40,17 +42,18 @@ export const getUserAddresses = async (token: string): Promise<SavedAddress[]> =
   }
 };
 
-export const getDefaultAddress = async (token: string): Promise<SavedAddress | null> => {
+export const getDefaultAddress = async (): Promise<SavedAddress | null> => {
   try {
     console.log('Fetching default address...');
     const response = await fetch(`${API_BASE_URL}/useraddresses/default`, {
-      headers: getAuthHeaders(token),
+      credentials: 'include',
+      headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
-        console.error('Unauthorized - Invalid or expired token');
+        console.error('Unauthorized - session expired');
         throw new Error('Please log in again');
       }
       if (response.status === 404) {
@@ -60,7 +63,7 @@ export const getDefaultAddress = async (token: string): Promise<SavedAddress | n
       console.error(`Failed to fetch default address: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch default address: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log('Successfully loaded default address');
     return data;
@@ -73,13 +76,14 @@ export const getDefaultAddress = async (token: string): Promise<SavedAddress | n
   }
 };
 
-export const createAddress = async (token: string, data: CreateUpdateAddressDto): Promise<SavedAddress> => {
+export const createAddress = async (data: CreateUpdateAddressDto): Promise<SavedAddress> => {
   const response = await fetch(`${API_BASE_URL}/useraddresses`, {
     method: 'POST',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  
+
   if (!response.ok) {
     const errorData = await response.text();
     console.error('Failed to create address:', response.status, errorData);
@@ -88,30 +92,33 @@ export const createAddress = async (token: string, data: CreateUpdateAddressDto)
   return await response.json();
 };
 
-export const updateAddress = async (token: string, id: number, data: CreateUpdateAddressDto): Promise<void> => {
+export const updateAddress = async (id: number, data: CreateUpdateAddressDto): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/useraddresses/${id}`, {
     method: 'PUT',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  
+
   if (!response.ok) throw new Error('Failed to update address');
 };
 
-export const deleteAddress = async (token: string, id: number): Promise<void> => {
+export const deleteAddress = async (id: number): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/useraddresses/${id}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) throw new Error('Failed to delete address');
 };
 
-export const setDefaultAddress = async (token: string, id: number): Promise<void> => {
+export const setDefaultAddress = async (id: number): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/useraddresses/${id}/set-default`, {
     method: 'PUT',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) throw new Error('Failed to set default address');
 };

@@ -92,7 +92,7 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   
   const { setShippingAddress, setBillingAddress, shippingAddress } = useCart();
-  const { user, token } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const {
     register,
@@ -129,13 +129,13 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
   // Load saved addresses
   useEffect(() => {
     const loadSavedAddresses = async () => {
-      if (!token) {
+      if (!isAuthenticated) {
         setIsLoadingAddresses(false);
         return;
       }
 
       try {
-        const addresses = await getUserAddresses(token);
+        const addresses = await getUserAddresses();
         setSavedAddresses(addresses || []); // ✅ Ensure we always set an array
       } catch (error) {
         console.error('Error loading saved addresses:', error);
@@ -146,7 +146,7 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
     };
 
     loadSavedAddresses();
-  }, [token]);
+  }, [isAuthenticated]);
 
   const handleSelectAddress = (address: SavedAddress) => {
     setSelectedAddressId(address.id);
@@ -164,10 +164,10 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
   };
 
   const handleDeleteAddress = async (id: number) => {
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     try {
-      await deleteAddress(token, id);
+      await deleteAddress(id);
       setSavedAddresses(prev => prev.filter(a => a.id !== id));
       if (selectedAddressId === id) {
         setSelectedAddressId(null);
@@ -181,10 +181,10 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
   };
 
   const handleSetDefault = async (id: number) => {
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     try {
-      await setDefaultAddress(token, id);
+      await setDefaultAddress(id);
       setSavedAddresses(prev => prev.map(a => ({
         ...a,
         isDefault: a.id === id
@@ -221,9 +221,9 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
       }
 
       // Save address if requested and user is authenticated
-      if (saveAddress && token && !selectedAddressId) {
+      if (saveAddress && isAuthenticated && !selectedAddressId) {
         try {
-          await createAddress(token, {
+          await createAddress({
             addressType: 'Shipping',
             firstName: data.firstName,
             lastName: data.lastName,
@@ -241,7 +241,7 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
           toast.success('Address saved for future use');
           
           // Reload addresses
-          const addresses = await getUserAddresses(token);
+          const addresses = await getUserAddresses();
           setSavedAddresses(addresses || []); // ✅ Ensure array
         } catch (error) {
           console.error('Error saving address:', error);
@@ -612,7 +612,7 @@ export function ShippingForm({ onComplete }: ShippingFormProps) {
               </Label>
             </div>
 
-            {token && (
+            {isAuthenticated && (
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="saveAddress"

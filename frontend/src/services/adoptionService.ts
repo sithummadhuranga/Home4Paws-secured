@@ -10,13 +10,11 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api'
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token')
-  return {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` })
-  }
-}
+// The access token lives in an httpOnly cookie, so every call below pairs this
+// with credentials: 'include' instead of an Authorization header
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+})
 
 export const adoptionService = {
   // Public
@@ -37,13 +35,17 @@ export const adoptionService = {
 
   // User listings
   async myListings(): Promise<AdoptionListing[]> {
-    const res = await fetch(`${API_BASE_URL}/adoptions/my-listings`, { headers: getAuthHeaders() })
+    const res = await fetch(`${API_BASE_URL}/adoptions/my-listings`, {
+      credentials: 'include',
+      headers: getAuthHeaders()
+    })
     if (!res.ok) throw new Error('Failed to fetch my listings')
     return res.json()
   },
   async create(input: CreateAdoptionListingInput): Promise<AdoptionListing> {
     const res = await fetch(`${API_BASE_URL}/adoptions`, {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify(input)
     })
@@ -53,6 +55,7 @@ export const adoptionService = {
   async update(id: number, input: UpdateAdoptionListingInput): Promise<AdoptionListing> {
     const res = await fetch(`${API_BASE_URL}/adoptions/${id}`, {
       method: 'PUT',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify(input)
     })
@@ -62,6 +65,7 @@ export const adoptionService = {
   async remove(id: number): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoptions/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to delete listing')
@@ -69,6 +73,7 @@ export const adoptionService = {
   async markAdopted(id: number): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoptions/${id}/adopted`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to mark as adopted')
@@ -78,6 +83,7 @@ export const adoptionService = {
   async submitApplication(input: CreateAdoptionApplicationInput): Promise<AdoptionApplication> {
     const res = await fetch(`${API_BASE_URL}/adoption-applications`, {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify(input)
     })
@@ -86,6 +92,7 @@ export const adoptionService = {
   },
   async applicationsByListing(listingId: number): Promise<AdoptionApplication[]> {
     const res = await fetch(`${API_BASE_URL}/adoption-applications/listing/${listingId}`, {
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to fetch applications')
@@ -93,6 +100,7 @@ export const adoptionService = {
   },
   async myApplications(): Promise<AdoptionApplication[]> {
     const res = await fetch(`${API_BASE_URL}/adoption-applications/my-applications`, {
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to fetch my applications')
@@ -101,6 +109,7 @@ export const adoptionService = {
   async updateApplicationStatus(id: number, status: 'Approved' | 'Rejected', ownerNotes?: string): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoption-applications/${id}/status`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({ status, ownerNotes })
     })
@@ -109,6 +118,7 @@ export const adoptionService = {
   async withdrawApplication(id: number): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoption-applications/${id}/withdraw`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to withdraw application')
@@ -117,6 +127,7 @@ export const adoptionService = {
   // Admin
   async pendingApprovals(): Promise<AdoptionListing[]> {
     const res = await fetch(`${API_BASE_URL}/adoptions/admin/pending`, {
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to fetch pending listings')
@@ -125,6 +136,7 @@ export const adoptionService = {
   async approve(id: number, notes?: string): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoptions/admin/${id}/approve`, {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({ notes })
     })
@@ -133,6 +145,7 @@ export const adoptionService = {
   async reject(id: number, rejectionReason: string): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoptions/admin/${id}/reject`, {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({ rejectionReason })
     })
@@ -144,7 +157,10 @@ export const adoptionService = {
     const url = status 
       ? `${API_BASE_URL}/adoptions/admin/all?status=${encodeURIComponent(status)}`
       : `${API_BASE_URL}/adoptions/admin/all`
-    const res = await fetch(url, { headers: getAuthHeaders() })
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: getAuthHeaders()
+    })
     if (!res.ok) throw new Error('Failed to fetch all listings')
     return res.json()
   },
@@ -152,6 +168,7 @@ export const adoptionService = {
   async adminDelete(id: number): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoptions/admin/${id}/delete`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to delete listing')
@@ -161,6 +178,7 @@ export const adoptionService = {
   async sendMessage(input: SendAdoptionMessageInput): Promise<AdoptionMessage> {
     const res = await fetch(`${API_BASE_URL}/adoption-messages`, {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify(input)
     })
@@ -170,6 +188,7 @@ export const adoptionService = {
 
   async getConversation(listingId: number): Promise<AdoptionMessage[]> {
     const res = await fetch(`${API_BASE_URL}/adoption-messages/conversation/${listingId}`, {
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to fetch conversation')
@@ -178,6 +197,7 @@ export const adoptionService = {
 
   async myMessages(): Promise<AdoptionMessage[]> {
     const res = await fetch(`${API_BASE_URL}/adoption-messages/my-messages`, {
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to fetch messages')
@@ -187,6 +207,7 @@ export const adoptionService = {
   async markMessageRead(id: number): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/adoption-messages/${id}/mark-read`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to mark message as read')
@@ -194,6 +215,7 @@ export const adoptionService = {
 
   async unreadCount(): Promise<number> {
     const res = await fetch(`${API_BASE_URL}/adoption-messages/unread-count`, {
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to fetch unread count')
@@ -202,6 +224,7 @@ export const adoptionService = {
 
   async unreadCountsByListing(): Promise<Record<number, number>> {
     const res = await fetch(`${API_BASE_URL}/adoption-messages/unread-counts-by-listing`, {
+      credentials: 'include',
       headers: getAuthHeaders()
     })
     if (!res.ok) throw new Error('Failed to fetch unread counts')
