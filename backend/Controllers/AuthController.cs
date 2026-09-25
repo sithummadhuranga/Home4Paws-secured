@@ -8,9 +8,15 @@ namespace Home4Paws.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController(IAuthService authService, ILogger<AuthController> logger) : ControllerBase
+    public class AuthController(
+        IAuthService authService,
+        IGoogleAuthService googleAuthService,
+        IConfiguration configuration,
+        ILogger<AuthController> logger) : ControllerBase
     {
         private readonly IAuthService _authService = authService;
+        private readonly IGoogleAuthService _googleAuthService = googleAuthService;
+        private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<AuthController> _logger = logger;
 
         /// <summary>
@@ -203,6 +209,58 @@ namespace Home4Paws.API.Controllers
                 message = "Expired sessions cleanup completed.",
                 timestamp = DateTime.UtcNow
             });
+        }
+
+        /// <summary>
+        /// Starts "Sign in with Google" (authorization code flow with PKCE)
+        /// </summary>
+        [HttpGet("google/start")]
+        public IActionResult GoogleStart()
+        {
+            if (string.IsNullOrEmpty(_configuration["Google:ClientId"]) ||
+                string.IsNullOrEmpty(_configuration["Google:ClientSecret"]))
+            {
+                return StatusCode(503, new { message = "Google sign-in is not configured." });
+            }
+
+            return Redirect(_googleAuthService.CreateAuthorizationUrl());
+        }
+
+        /// <summary>
+        /// Google redirects here after the user signs in. Sends the browser back to the frontend.
+        /// </summary>
+        [HttpGet("google/callback")]
+        public async Task<IActionResult> GoogleCallback(
+            [FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? error)
+        {
+            var frontend = (_configuration["ExternalServices:BaseUrl"] ?? "http://localhost:3000").TrimEnd('/');
+            var (loginCode, failure) = await _googleAuthService.HandleCallbackAsync(code, state, error, GetClientIpAddress());
+
+            if (loginCode == null)
+            {
+                return Redirect($"{frontend}/auth/google/callback?error={Uri.EscapeDataString(failure ?? "server_error")}");
+            }
+
+            return Redirect($"{frontend}/auth/google/callback?code={Uri.EscapeDataString(loginCode)}");
+        }
+
+        /// <summary>
+        /// Frontend swaps the one-time code from the callback redirect for the app tokens
+        /// </summary>
+        [HttpPost("google/exchange")]
+        public ActionResult<AuthResponse> GoogleExchange([FromBody] GoogleExchangeRequest request)
+        {
+            var response = _googleAuthService.RedeemLoginCode(request.Code ?? string.Empty);
+            if (response == null)
+            {
+                return BadRequest(new AuthResponse
+                {
+                    Success = false,
+                    Message = "Invalid or expired sign-in code."
+                });
+            }
+
+            return Ok(response);
         }
 
         private string GetClientIpAddress()

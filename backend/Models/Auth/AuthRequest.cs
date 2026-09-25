@@ -57,4 +57,9 @@ namespace Home4Paws.API.Models.Auth
         public string? RefreshToken { get; set; }
         public bool LogoutFromAllDevices { get; set; } = false;
     }
+
+    public class GoogleExchangeRequest
+    {
+        public string? Code { get; set; }
+    }
 }

@@ -114,6 +114,7 @@ builder.Services.AddScoped<IPetFavoriteRepository, PetFavoriteRepository>();
 
 // Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<IAdoptionService, AdoptionService>();
 builder.Services.AddScoped<IAdoptionApplicationService, AdoptionApplicationService>();
@@ -124,7 +125,7 @@ builder.Services.AddScoped<IPetListingService, PetListingService>();
 builder.Services.AddScoped<IPetInquiryService, PetInquiryService>();
 
 // Register AutoMapper
-builder.Services.AddAutoMapper(typeof(MappingProfiles));
+builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(MappingProfiles)));
 // Register Pet Services
 builder.Services.AddScoped<IPetReportService, PetReportService>();
 builder.Services.AddScoped<ILocationSearchService, LocationSearchService>();
@@ -217,7 +218,14 @@ else
 app.UseRouting();
 
 // Configure static file serving
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Stop browsers from guessing a different content type for uploaded files
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    }
+});
 
 // Add Authentication & Authorization (AFTER CORS)
 app.UseAuthentication();
