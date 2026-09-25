@@ -82,7 +82,11 @@ export const deleteOrder = async (token: string, orderId: number) => {
 
 // Users Management
 export const getAllUsers = async (token: string) => {
-  const response = await fetch(`${API_BASE_URL}/dev/users`, {
+  // ---- CODE BEFORE FIX (V02) ----
+  // const response = await fetch(`${API_BASE_URL}/dev/users`, {
+  // ---- END CODE BEFORE FIX (V02) ----
+  // ---- FIXED (V02): the public dev endpoint was removed; use the Admin-only endpoint ----
+  const response = await fetch(`${API_BASE_URL}/admin/users`, {
     headers: getAuthHeaders(token),
     cache: 'no-store',
   });
