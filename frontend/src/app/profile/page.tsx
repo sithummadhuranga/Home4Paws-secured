@@ -402,6 +402,12 @@ export default function ProfilePage() {
                             Email Verified
                           </Badge>
                         )}
+
+                        {user.authProvider === 'Google' && (
+                          <Badge variant="secondary" className="bg-blue-900/30 text-blue-300 border-blue-400/30 flex items-center gap-1">
+                            Linked with Google
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

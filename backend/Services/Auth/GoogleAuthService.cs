@@ -133,6 +133,19 @@ namespace Home4Paws.API.Services.Auth
 
                 await _userRepository.UpdateLastLoginAsync(user.Id, DateTime.UtcNow);
 
+                var accessToken = _jwtHelper.GenerateJwtToken(user);
+                var googleRefreshToken = _jwtHelper.GenerateRefreshToken();
+                var sessionExpiresAt = _jwtHelper.GetTokenExpiry(false);
+
+                await _userRepository.CreateUserSessionAsync(new UserSession
+                {
+                    UserId = user.Id,
+                    Token = accessToken,
+                    RefreshToken = googleRefreshToken,
+                    ExpiresAt = sessionExpiresAt,
+                    IpAddress = ipAddress
+                });
+
                 var response = new AuthResponse
                 {
                     Success = true,
@@ -146,13 +159,14 @@ namespace Home4Paws.API.Services.Auth
                         Role = user.Role,
                         EmailVerified = user.EmailVerified,
                         CreatedAt = user.CreatedAt,
-                        LastLoginAt = DateTime.UtcNow
+                        LastLoginAt = DateTime.UtcNow,
+                        AuthProvider = user.AuthProvider
                     },
                     Tokens = new TokenInfo
                     {
-                        AccessToken = _jwtHelper.GenerateJwtToken(user),
-                        RefreshToken = _jwtHelper.GenerateRefreshToken(),
-                        ExpiresAt = _jwtHelper.GetTokenExpiry(false)
+                        AccessToken = accessToken,
+                        RefreshToken = googleRefreshToken,
+                        ExpiresAt = sessionExpiresAt
                     }
                 };
 
@@ -256,6 +270,7 @@ namespace Home4Paws.API.Services.Auth
                 Role = "User",
                 IsActive = true,
                 EmailVerified = true,
+                AuthProvider = "Google",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

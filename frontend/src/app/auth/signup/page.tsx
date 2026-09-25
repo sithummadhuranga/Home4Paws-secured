@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, ArrowLeft, Check, Loader2, Mail, Lock, User, Sparkles, Crown, Rocket } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -140,7 +141,7 @@ export default function SignupPage() {
               )}
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} method="post" className="space-y-6">
                 {/* Name Fields */}
                 <div className="grid grid-cols-2 gap-4 animate-fadeInUp stagger-3">
                   <div className="space-y-2">
@@ -323,6 +324,15 @@ export default function SignupPage() {
                     </div>
                   )}
                 </Button>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-purple-400/20" />
+                  <span className="text-purple-400/60 text-sm">or</span>
+                  <div className="flex-1 h-px bg-purple-400/20" />
+                </div>
+
+                <GoogleSignInButton />
               </form>
 
               {/* Footer */}
