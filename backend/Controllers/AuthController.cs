@@ -169,7 +169,14 @@ namespace Home4Paws.API.Controllers
         /// </summary>
         /// <param name="request">Logout options</param>
         /// <returns>Logout response</returns>
+        // ---- CODE BEFORE FIX (V14) ----
+        // [HttpPost("logout")]
+        // ---- END CODE BEFORE FIX (V14) ----
+        // ---- FIXED (V14): logout accepted anonymous calls. Now requires an authenticated caller.
+        // Note: LogoutAsync is still a stub (no refresh tokens are stored yet), so real token
+        // revocation depends on the session work in V09. ----
         [HttpPost("logout")]
+        [Authorize]
         public async Task<ActionResult<LogoutResponse>> Logout([FromBody] LogoutRequest request)
         {
             var response = await _authService.LogoutAsync(request);
@@ -193,7 +200,13 @@ namespace Home4Paws.API.Controllers
         /// <summary>
         /// Cleanup expired sessions (admin endpoint)
         /// </summary>
+        // ---- CODE BEFORE FIX (V14) ----
+        // [HttpPost("cleanup-sessions")]
+        // ---- END CODE BEFORE FIX (V14) ----
+        // ---- FIXED (V14): documented as an admin endpoint but had no [Authorize], so anyone
+        // could trigger session maintenance. Admin-only now. ----
         [HttpPost("cleanup-sessions")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CleanupExpiredSessions()
         {
             var result = await _authService.CleanupExpiredSessionsAsync();
