@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -64,6 +65,8 @@ interface PetReport {
 }
 
 export default function AdminReportsPage() {
+  // ---- FIXED (V03): the status endpoint is now Admin-only, so send the admin's token ----
+  const { token } = useAuth()
   const [reports, setReports] = useState<PetReport[]>([])
   const [filteredReports, setFilteredReports] = useState<PetReport[]>([])
   const [loading, setLoading] = useState(true)
@@ -100,8 +103,15 @@ export default function AdminReportsPage() {
     try {
       const response = await fetch(`http://localhost:5185/api/reports/${reportId}/status`, {
         method: 'PUT',
+        // ---- CODE BEFORE FIX (V03) ----
+        // headers: {
+        //   'Content-Type': 'application/json',
+        // },
+        // ---- END CODE BEFORE FIX (V03) ----
+        // ---- FIXED (V03): include the admin's Bearer token ----
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           status: newStatus,
