@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Home4Paws.API.Models.Auth;
 using Home4Paws.API.Services.Auth;
 using System.Security.Claims;
@@ -12,12 +13,57 @@ namespace Home4Paws.API.Controllers
         IAuthService authService,
         IGoogleAuthService googleAuthService,
         IConfiguration configuration,
+        IWebHostEnvironment environment,
         ILogger<AuthController> logger) : ControllerBase
     {
         private readonly IAuthService _authService = authService;
         private readonly IGoogleAuthService _googleAuthService = googleAuthService;
         private readonly IConfiguration _configuration = configuration;
+        private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<AuthController> _logger = logger;
+
+        private const string AccessCookieName = "h4p_at";
+        private const string RefreshCookieName = "h4p_rt";
+
+        // Refresh/logout only ever need this cookie on /api/auth/* requests, so it's
+        // scoped there instead of riding along on every request like the access cookie
+        private void SetAuthCookies(TokenInfo tokens)
+        {
+            var isProduction = !_environment.IsDevelopment();
+
+            Response.Cookies.Append(AccessCookieName, tokens.AccessToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isProduction,
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddMinutes(_configuration.GetValue("JwtSettings:ExpiryInMinutes", 15))
+            });
+
+            Response.Cookies.Append(RefreshCookieName, tokens.RefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isProduction,
+                SameSite = SameSiteMode.Lax,
+                Path = "/api/auth",
+                Expires = tokens.ExpiresAt
+            });
+        }
+
+        private void ClearAuthCookies()
+        {
+            Response.Cookies.Delete(AccessCookieName, new CookieOptions { Path = "/" });
+            Response.Cookies.Delete(RefreshCookieName, new CookieOptions { Path = "/api/auth" });
+        }
+
+        // The frontend never needs the raw tokens once the cookies are set - returning
+        // them in the JSON body too would let anything that can read a fetch() response
+        // (an XSS payload included) grab them straight back out
+        private static AuthResponse WithoutTokens(AuthResponse response)
+        {
+            response.Tokens = null;
+            return response;
+        }
 
         /// <summary>
         /// User login endpoint
@@ -25,6 +71,7 @@ namespace Home4Paws.API.Controllers
         /// <param name="request">Login credentials</param>
         /// <returns>Authentication response with user info and tokens</returns>
         [HttpPost("login")]
+        [EnableRateLimiting("login")]
         public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
         {
             if (!ModelState.IsValid)
@@ -50,7 +97,8 @@ namespace Home4Paws.API.Controllers
                 return BadRequest(response);
             }
 
-            return Ok(response);
+            SetAuthCookies(response.Tokens!);
+            return Ok(WithoutTokens(response));
         }
 
         /// <summary>
@@ -84,7 +132,8 @@ namespace Home4Paws.API.Controllers
                 return BadRequest(response);
             }
 
-            return CreatedAtAction(nameof(Signup), response);
+            SetAuthCookies(response.Tokens!);
+            return CreatedAtAction(nameof(Signup), WithoutTokens(response));
         }
 
         /// <summary>
@@ -137,37 +186,29 @@ namespace Home4Paws.API.Controllers
         }
 
         /// <summary>
-        /// Refresh access token using refresh token
+        /// Refresh access token using the refresh token cookie
         /// </summary>
-        /// <param name="request">Refresh token</param>
         /// <returns>New authentication tokens</returns>
         [HttpPost("refresh")]
-        public async Task<ActionResult<AuthResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
+        public async Task<ActionResult<AuthResponse>> RefreshToken()
         {
-            if (!ModelState.IsValid)
+            var refreshToken = Request.Cookies[RefreshCookieName];
+            if (string.IsNullOrEmpty(refreshToken))
             {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage)
-                    .ToList();
-
-                return BadRequest(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid input data.",
-                    Errors = errors
-                });
+                return BadRequest(new AuthResponse { Success = false, Message = "No refresh token found." });
             }
 
             var ipAddress = GetClientIpAddress();
-            var response = await _authService.RefreshTokenAsync(request, ipAddress);
+            var response = await _authService.RefreshTokenAsync(refreshToken, ipAddress);
 
             if (!response.Success)
             {
+                ClearAuthCookies();
                 return BadRequest(response);
             }
 
-            return Ok(response);
+            SetAuthCookies(response.Tokens!);
+            return Ok(WithoutTokens(response));
         }
 
         /// <summary>
@@ -178,7 +219,9 @@ namespace Home4Paws.API.Controllers
         [HttpPost("logout")]
         public async Task<ActionResult<LogoutResponse>> Logout([FromBody] LogoutRequest request)
         {
-            var response = await _authService.LogoutAsync(request);
+            var refreshToken = Request.Cookies[RefreshCookieName];
+            var response = await _authService.LogoutAsync(refreshToken, request.LogoutFromAllDevices);
+            ClearAuthCookies();
             return Ok(response);
         }
 
@@ -260,7 +303,8 @@ namespace Home4Paws.API.Controllers
                 });
             }
 
-            return Ok(response);
+            SetAuthCookies(response.Tokens!);
+            return Ok(WithoutTokens(response));
         }
 
         private string GetClientIpAddress()
