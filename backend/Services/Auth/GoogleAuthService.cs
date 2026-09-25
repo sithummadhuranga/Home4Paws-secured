@@ -48,9 +48,9 @@ namespace Home4Paws.API.Services.Auth
             _logger = logger;
         }
 
-        private string ClientId => _configuration["Google:ClientId"]
+        private string ClientId => _configuration["Google:ClientId"]?.Trim()
             ?? throw new InvalidOperationException("Google:ClientId is not configured");
-        private string ClientSecret => _configuration["Google:ClientSecret"]
+        private string ClientSecret => _configuration["Google:ClientSecret"]?.Trim()
             ?? throw new InvalidOperationException("Google:ClientSecret is not configured");
         private string RedirectUri => _configuration["Google:RedirectUri"]
             ?? "http://localhost:5185/api/auth/google/callback";
