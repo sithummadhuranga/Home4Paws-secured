@@ -114,6 +114,7 @@ builder.Services.AddScoped<IPetFavoriteRepository, PetFavoriteRepository>();
 
 // Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<IAdoptionService, AdoptionService>();
 builder.Services.AddScoped<IAdoptionApplicationService, AdoptionApplicationService>();
