@@ -73,8 +73,15 @@ public class ProductsController : ControllerBase
 
     // POST: api/products
     // Admin-only endpoint to create a new product.
+    // ---- CODE BEFORE FIX (V04) ----
+    // [HttpPost]
+    // //[Authorize(Roles = "Admin")]
+    // ---- END CODE BEFORE FIX (V04) ----
+    // ---- FIXED (V04): the admin check was commented out, so anyone (even without a token)
+    // could create products. Restored so only authenticated users in the Admin role can
+    // create products, matching PUT and DELETE below. ----
     [HttpPost]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ProductDto>> CreateProduct([FromBody] CreateUpdateProductDto productDto)
     {
         // Use AutoMapper to convert the incoming DTO to a Product entity

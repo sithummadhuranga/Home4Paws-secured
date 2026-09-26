@@ -216,6 +216,14 @@ namespace Home4Paws.API.Controllers
         /// </summary>
         /// <param name="request">Logout options</param>
         /// <returns>Logout response</returns>
+        // ---- CODE BEFORE FIX (V14) ----
+        // [HttpPost("logout")]
+        // ---- END CODE BEFORE FIX (V14) ----
+        // ---- FIXED (V14): logout now really revokes the refresh token, which lives in an
+        // httpOnly cookie (V09). It deliberately has no [Authorize]: the access cookie expires
+        // after 15 minutes, and a 401 at that point would skip revocation and leave the user's
+        // session alive. Possession of the refresh cookie is the proof here; an anonymous call
+        // without it revokes nothing. cleanup-sessions below stays Admin-only. ----
         [HttpPost("logout")]
         public async Task<ActionResult<LogoutResponse>> Logout([FromBody] LogoutRequest request)
         {
@@ -242,7 +250,13 @@ namespace Home4Paws.API.Controllers
         /// <summary>
         /// Cleanup expired sessions (admin endpoint)
         /// </summary>
+        // ---- CODE BEFORE FIX (V14) ----
+        // [HttpPost("cleanup-sessions")]
+        // ---- END CODE BEFORE FIX (V14) ----
+        // ---- FIXED (V14): documented as an admin endpoint but had no [Authorize], so anyone
+        // could trigger session maintenance. Admin-only now. ----
         [HttpPost("cleanup-sessions")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CleanupExpiredSessions()
         {
             var result = await _authService.CleanupExpiredSessionsAsync();

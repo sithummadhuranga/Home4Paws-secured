@@ -1,0 +1,1885 @@
+{
+  "info": {
+    "_postman_id": "5d2f6bd8-155d-4d49-ac6c-0275f08273df",
+    "name": "Home4Paws - M2 Authorization Test Suite",
+    "description": "SE4030 Member 2 (T.H.N.Nadushka, IT23294202). Access-control test matrix for V02, V03, V04, V05, V14.\nTests named 'SECURE:' assert the SECURE behaviour, so on the ORIGINAL code they FAIL (proving the vulnerability) and after the fixes they PASS. Tests named 'FUNCTIONAL:' check that legitimate access still works.\nRun the whole collection in order with the Collection Runner. Requires the local stack (see MEMBER2_PLAN.md). Set adminEmail/adminPassword as the CURRENT value of the collection variables locally (never commit a real password). Set Postman Settings > Working directory to this security-tests folder so test-pet.png is found. See security-tests/README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Setup (run first)",
+      "item": [
+        {
+          "name": "Init run id (unique escalation-victim email per run)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/health"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"userCEmail\", `m2.userc.${Date.now()}@test.local`);",
+                  "pm.test(\"setup: API reachable\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: login succeeded\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "// After V09 the access token is only sent as the httpOnly cookie h4p_at (not in the body)",
+                  "const sc = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).find(v => v.startsWith('h4p_at='));",
+                  "pm.test('setup: access-token cookie h4p_at received', () => pm.expect(sc).to.be.a('string'));",
+                  "pm.collectionVariables.set(\"adminToken\", sc ? sc.split(\";\")[0].substring(7) : \"\");",
+                  "pm.collectionVariables.set(\"adminId\", j.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Signup User A (400 if already exists is OK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"M2\",\n  \"lastName\": \"UserA\",\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"{{userAPassword}}\",\n  \"confirmPassword\": \"{{userAPassword}}\",\n  \"agreeToTerms\": true\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: signup ok or user already exists\", () => pm.expect(pm.response.code).to.be.oneOf([201, 400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login User A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"{{userAPassword}}\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: login succeeded\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "// After V09 the access token is only sent as the httpOnly cookie h4p_at (not in the body)",
+                  "const sc = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).find(v => v.startsWith('h4p_at='));",
+                  "pm.test('setup: access-token cookie h4p_at received', () => pm.expect(sc).to.be.a('string'));",
+                  "pm.collectionVariables.set(\"tokenA\", sc ? sc.split(\";\")[0].substring(7) : \"\");",
+                  "pm.collectionVariables.set(\"userAId\", j.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Signup User B (400 if already exists is OK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"M2\",\n  \"lastName\": \"UserB\",\n  \"email\": \"{{userBEmail}}\",\n  \"password\": \"{{userBPassword}}\",\n  \"confirmPassword\": \"{{userBPassword}}\",\n  \"agreeToTerms\": true\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: signup ok or user already exists\", () => pm.expect(pm.response.code).to.be.oneOf([201, 400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login User B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userBEmail}}\",\n  \"password\": \"{{userBPassword}}\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: login succeeded\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "// After V09 the access token is only sent as the httpOnly cookie h4p_at (not in the body)",
+                  "const sc = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).find(v => v.startsWith('h4p_at='));",
+                  "pm.test('setup: access-token cookie h4p_at received', () => pm.expect(sc).to.be.a('string'));",
+                  "pm.collectionVariables.set(\"tokenB\", sc ? sc.split(\";\")[0].substring(7) : \"\");",
+                  "pm.collectionVariables.set(\"userBId\", j.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Signup User C (400 if already exists is OK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"M2\",\n  \"lastName\": \"UserC\",\n  \"email\": \"{{userCEmail}}\",\n  \"password\": \"{{userCPassword}}\",\n  \"confirmPassword\": \"{{userCPassword}}\",\n  \"agreeToTerms\": true\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: signup ok or user already exists\", () => pm.expect(pm.response.code).to.be.oneOf([201, 400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin creates a category (needed for product tests)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"M2 Test Category\",\n  \"description\": \"authz tests\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: category created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"categoryId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "UserA creates pet report R1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Type",
+                  "value": "Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Name",
+                  "value": "M2 Test Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Breed",
+                  "value": "Mixed",
+                  "type": "text"
+                },
+                {
+                  "key": "Age",
+                  "value": "Adult",
+                  "type": "text"
+                },
+                {
+                  "key": "Gender",
+                  "value": "Male",
+                  "type": "text"
+                },
+                {
+                  "key": "Size",
+                  "value": "Medium",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Brown",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Created by Member 2 authorization test suite",
+                  "type": "text"
+                },
+                {
+                  "key": "ReportType",
+                  "value": "Lost",
+                  "type": "text"
+                },
+                {
+                  "key": "LostOrFoundDate",
+                  "value": "2026-09-01T10:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Colombo",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "User A",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0771234567",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "m2.contact@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "Photos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: report created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"r1\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "UserA creates pet report R2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Type",
+                  "value": "Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Name",
+                  "value": "M2 Test Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Breed",
+                  "value": "Mixed",
+                  "type": "text"
+                },
+                {
+                  "key": "Age",
+                  "value": "Adult",
+                  "type": "text"
+                },
+                {
+                  "key": "Gender",
+                  "value": "Male",
+                  "type": "text"
+                },
+                {
+                  "key": "Size",
+                  "value": "Medium",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Brown",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Created by Member 2 authorization test suite",
+                  "type": "text"
+                },
+                {
+                  "key": "ReportType",
+                  "value": "Lost",
+                  "type": "text"
+                },
+                {
+                  "key": "LostOrFoundDate",
+                  "value": "2026-09-01T10:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Colombo",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "User A",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0771234567",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "m2.contact@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "Photos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: report created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"r2\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "UserA creates pet report R3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Type",
+                  "value": "Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Name",
+                  "value": "M2 Test Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Breed",
+                  "value": "Mixed",
+                  "type": "text"
+                },
+                {
+                  "key": "Age",
+                  "value": "Adult",
+                  "type": "text"
+                },
+                {
+                  "key": "Gender",
+                  "value": "Male",
+                  "type": "text"
+                },
+                {
+                  "key": "Size",
+                  "value": "Medium",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Brown",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Created by Member 2 authorization test suite",
+                  "type": "text"
+                },
+                {
+                  "key": "ReportType",
+                  "value": "Lost",
+                  "type": "text"
+                },
+                {
+                  "key": "LostOrFoundDate",
+                  "value": "2026-09-01T10:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Colombo",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "User A",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0771234567",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "m2.contact@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "Photos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"setup: report created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"r3\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Logs in the seeded admin, creates/logs in userA and userB, a fresh userC, a category, and three pet reports owned by userA."
+    },
+    {
+      "name": "V02 Unauthenticated user listing",
+      "item": [
+        {
+          "name": "[V02] Anonymous GET /api/dev/users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/dev/users"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous must NOT receive the user list\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V02] UserA (non-admin) GET /api/dev/users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/dev/users"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: normal user must NOT receive the user list\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V02-fix] Anonymous GET /api/admin/users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: status must be 401\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V02-fix] UserA GET /api/admin/users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: status must be 403\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V02-fix] Admin GET /api/admin/users (must still work)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can list users\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "V03 Pet reports: missing authorization + IDOR",
+      "item": [
+        {
+          "name": "[V03] Public GET /api/reports (must stay public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/reports"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: public listing still works\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Anonymous POST /api/reports (anonymous reporting allowed by design)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/reports",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Type",
+                  "value": "Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Name",
+                  "value": "M2 Test Dog",
+                  "type": "text"
+                },
+                {
+                  "key": "Breed",
+                  "value": "Mixed",
+                  "type": "text"
+                },
+                {
+                  "key": "Age",
+                  "value": "Adult",
+                  "type": "text"
+                },
+                {
+                  "key": "Gender",
+                  "value": "Male",
+                  "type": "text"
+                },
+                {
+                  "key": "Size",
+                  "value": "Medium",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Brown",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Created by Member 2 authorization test suite",
+                  "type": "text"
+                },
+                {
+                  "key": "ReportType",
+                  "value": "Lost",
+                  "type": "text"
+                },
+                {
+                  "key": "LostOrFoundDate",
+                  "value": "2026-09-01T10:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Colombo",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "Anonymous",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0771234567",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "m2.contact@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "Photos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: anonymous lost/found reporting still works\", () => pm.expect(pm.response.code).to.be.oneOf([201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Anonymous PUT /api/reports/{r1} (edit)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/reports/{{r1}}",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Breed",
+                  "value": "EDITED-BY-ATTACKER",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Black",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Edited by another user",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Kandy",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "Attacker",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0770000000",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "attacker@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "NewPhotos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot edit a report\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] UserB PUT /api/reports/{r1} (edit userA's report)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenB}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r1}}",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Breed",
+                  "value": "EDITED-BY-ATTACKER",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Black",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Edited by another user",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Kandy",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "Attacker",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0770000000",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "attacker@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "NewPhotos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: userB cannot edit userA's report (IDOR)\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] UserA PUT /api/reports/{r1} (non-admin edit)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r1}}",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Breed",
+                  "value": "EDITED-BY-ATTACKER",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Black",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Edited by another user",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Kandy",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "Attacker",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0770000000",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "attacker@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "NewPhotos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: only admins can edit reports\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Admin PUT /api/reports/{r1} (must work)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r1}}",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "Breed",
+                  "value": "EDITED-BY-ATTACKER",
+                  "type": "text"
+                },
+                {
+                  "key": "Color",
+                  "value": "Black",
+                  "type": "text"
+                },
+                {
+                  "key": "Description",
+                  "value": "Edited by another user",
+                  "type": "text"
+                },
+                {
+                  "key": "Location",
+                  "value": "Kandy",
+                  "type": "text"
+                },
+                {
+                  "key": "ContactName",
+                  "value": "Attacker",
+                  "type": "text"
+                },
+                {
+                  "key": "Phone",
+                  "value": "0770000000",
+                  "type": "text"
+                },
+                {
+                  "key": "Email",
+                  "value": "attacker@test.local",
+                  "type": "text"
+                },
+                {
+                  "key": "NewPhotos",
+                  "type": "file",
+                  "src": "test-pet.png"
+                }
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can edit a pending report\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Anonymous DELETE /api/reports/{r2}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/reports/{{r2}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot delete a report\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] UserB DELETE /api/reports/{r3} (userA's report)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenB}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r3}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: userB cannot delete userA's report (IDOR)\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] UserA DELETE /api/reports/{r3} (non-admin delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r3}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: only admins can delete reports\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Admin DELETE /api/reports/{r3} (must work)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r3}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can delete a pending report\", () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Anonymous GET /api/reports/user/{userAId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/reports/user/{{userAId}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot read a user's reports\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] UserB GET /api/reports/user/{userAId} (IDOR)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenB}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/user/{{userAId}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: userB cannot read userA's reports (IDOR)\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] UserA GET /api/reports/user/{userAId} (own, must work)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/user/{{userAId}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: user can call the endpoint for their own id\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Anonymous PUT /api/reports/{r1}/status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r1}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"adminNotes\": \"changed by anonymous attacker\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot change report status\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] UserA PUT /api/reports/{r1}/status (non-admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r1}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"adminNotes\": \"self-approved\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: only admins can change report status\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V03] Admin PUT /api/reports/{r1}/status (must work)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/{{r1}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"adminNotes\": \"approved by admin\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can change status\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "V04 Product creation without admin role",
+      "item": [
+        {
+          "name": "[V04] Anonymous POST /api/products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"M2 Injected Product\",\n  \"description\": \"created without admin rights\",\n  \"sku\": \"M2-TEST-001\",\n  \"price\": 1.0,\n  \"stockQuantity\": 1,\n  \"imageUrl\": \"\",\n  \"categoryId\": {{categoryId}},\n  \"isFeatured\": false,\n  \"isActive\": true\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot create products\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V04] UserA (non-admin) POST /api/products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"M2 Injected Product\",\n  \"description\": \"created without admin rights\",\n  \"sku\": \"M2-TEST-001\",\n  \"price\": 1.0,\n  \"stockQuantity\": 1,\n  \"imageUrl\": \"\",\n  \"categoryId\": {{categoryId}},\n  \"isFeatured\": false,\n  \"isActive\": true\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: normal user cannot create products\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V04] Admin POST /api/products (must work)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"M2 Injected Product\",\n  \"description\": \"created without admin rights\",\n  \"sku\": \"M2-TEST-001\",\n  \"price\": 1.0,\n  \"stockQuantity\": 1,\n  \"imageUrl\": \"\",\n  \"categoryId\": {{categoryId}},\n  \"isFeatured\": false,\n  \"isActive\": true\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can create products\", () => pm.expect(pm.response.code).to.be.oneOf([201]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "V05 Backdoor dev endpoints",
+      "item": [
+        {
+          "name": "[V05] Anonymous POST /api/dev/make-admin (userC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/dev/make-admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userCEmail}}\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot promote a user to Admin\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V05] Login userC and check role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userCEmail}}\",\n  \"password\": \"{{userCPassword}}\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: userC must still have role User\", () => pm.expect(pm.response.json().user.role).to.eql(\"User\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V05] Anonymous POST /api/dev/reset-password (userC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/dev/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userCEmail}}\",\n  \"newPassword\": \"{{userCPassword}}\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot reset another user's password\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V05] Anonymous POST /api/dev/create-test-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/dev/create-test-user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Back\",\n  \"lastName\": \"Door\",\n  \"email\": \"m2.backdoor.{{$timestamp}}@test.local\",\n  \"password\": \"Backdoor123\"\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot mint users + tokens via dev endpoint\", () => pm.expect(pm.response.code).to.be.oneOf([401, 403, 404]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "V14 Unauthenticated maintenance / logout",
+      "item": [
+        {
+          "name": "[V14] Anonymous POST /api/auth/cleanup-sessions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/cleanup-sessions"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: anonymous cannot run session cleanup\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V14] UserA POST /api/auth/cleanup-sessions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/cleanup-sessions"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"SECURE: only admins can run session cleanup\", () => pm.expect(pm.response.code).to.be.oneOf([403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V14] Admin POST /api/auth/cleanup-sessions (must work)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/cleanup-sessions"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: admin can run session cleanup\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V14] Anonymous POST /api/auth/logout (no refresh cookie)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logoutFromAllDevices\": false\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"DESIGN: logout needs no access token (after V09); without a refresh cookie nothing is revoked\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[V14] UserB POST /api/auth/logout (must work)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenB}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logoutFromAllDevices\": false\n}"
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"FUNCTIONAL: logged-in user can log out\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5185"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@home4paws.lk"
+    },
+    {
+      "key": "adminPassword",
+      "value": ""
+    },
+    {
+      "key": "userAEmail",
+      "value": "m2.usera@test.local"
+    },
+    {
+      "key": "userAPassword",
+      "value": "UserA12345"
+    },
+    {
+      "key": "userBEmail",
+      "value": "m2.userb@test.local"
+    },
+    {
+      "key": "userBPassword",
+      "value": "UserB12345"
+    },
+    {
+      "key": "userCEmail",
+      "value": ""
+    },
+    {
+      "key": "userCPassword",
+      "value": "UserC12345"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "adminId",
+      "value": ""
+    },
+    {
+      "key": "tokenA",
+      "value": ""
+    },
+    {
+      "key": "userAId",
+      "value": ""
+    },
+    {
+      "key": "tokenB",
+      "value": ""
+    },
+    {
+      "key": "userBId",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "r1",
+      "value": ""
+    },
+    {
+      "key": "r2",
+      "value": ""
+    },
+    {
+      "key": "r3",
+      "value": ""
+    }
+  ]
+}

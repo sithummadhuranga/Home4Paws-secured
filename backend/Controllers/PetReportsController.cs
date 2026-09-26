@@ -1,14 +1,26 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Home4Paws.API.Models.Pets;
 using Home4Paws.API.Services.Pets;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Home4Paws.API.Controllers
 {
+    // ---- CODE BEFORE FIX (V03) ----
+    // [ApiController]
+    // [Route("api/reports")]
+    // public class PetReportsController : ControllerBase
+    // ---- END CODE BEFORE FIX (V03) ----
+    // ---- FIXED (V03): the controller had no [Authorize] at all, so anyone could change the
+    // status of, edit or delete any report. Now deny-by-default: every action needs a login
+    // unless it is explicitly marked [AllowAnonymous] (public browsing + anonymous reporting),
+    // and status change / edit / delete are Admin-only. ----
     [ApiController]
     [Route("api/reports")]
+    [Authorize]
     public class PetReportsController : ControllerBase
     {
         private readonly IPetReportService _petReportService;
@@ -25,6 +37,8 @@ namespace Home4Paws.API.Controllers
             _imageSimilarityService = imageSimilarityService;
         }
 
+        // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
+        [AllowAnonymous]
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAll([FromQuery] PetReportSearchParams searchParams)
@@ -41,6 +55,8 @@ namespace Home4Paws.API.Controllers
             }
         }
 
+        // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
+        [AllowAnonymous]
         [HttpGet("simple")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllSimple()
@@ -57,6 +73,8 @@ namespace Home4Paws.API.Controllers
             }
         }
 
+        // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
+        [AllowAnonymous]
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -67,17 +85,33 @@ namespace Home4Paws.API.Controllers
             return Ok(report);
         }
 
+        // ---- FIXED (V03): IDOR - any caller could request /user/{anyId}. Now requires login
+        // (controller-level [Authorize]) and the caller may only request their OWN id unless
+        // they are an Admin; otherwise 403. ----
         [HttpGet("user/{userId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetByUserId(int userId)
         {
+            var callerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!User.IsInRole("Admin") && callerId != userId.ToString())
+            {
+                return Forbid();
+            }
+
+            // KNOWN LIMITATION (not fixed, see report): reports do not store who created them,
+            // so this still cannot filter to the caller's own reports and returns the same list
+            // that the public GET /api/reports already exposes.
             var searchParams = new PetReportSearchParams(); // Can add UserId filter here if needed
             var reports = await _petReportService.GetAllAsync(searchParams);
             // For now, return all reports - this can be filtered by userId in the service layer
             return Ok(reports);
         }
 
+        // ---- FIXED (V03): status change (approve/reject/resolve + admin notes) was open to
+        // anyone. Admin-only now. ----
         [HttpPut("{id}/status")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -96,6 +130,8 @@ namespace Home4Paws.API.Controllers
             }
         }
 
+        // ---- FIXED (V03): anonymous lost/found reporting is still allowed (group decision) ----
+        [AllowAnonymous]
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -112,7 +148,10 @@ namespace Home4Paws.API.Controllers
             }
         }
 
+        // ---- FIXED (V03): edit was open to anyone. Reports have no stored owner and can be
+        // submitted anonymously, so only an Admin may edit. ----
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -134,7 +173,9 @@ namespace Home4Paws.API.Controllers
             }
         }
 
+        // ---- FIXED (V03): delete was open to anyone. Admin-only for the same reason as edit. ----
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -151,6 +192,8 @@ namespace Home4Paws.API.Controllers
             }
         }
 
+        // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
+        [AllowAnonymous]
         [HttpGet("statistics")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetStatistics([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
@@ -159,6 +202,8 @@ namespace Home4Paws.API.Controllers
             return Ok(stats);
         }
 
+        // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
+        [AllowAnonymous]
         [HttpGet("hotspots")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetHotspots()
@@ -167,6 +212,8 @@ namespace Home4Paws.API.Controllers
             return Ok(hotspots);
         }
 
+        // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
+        [AllowAnonymous]
         [HttpGet("similar/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -187,6 +234,8 @@ namespace Home4Paws.API.Controllers
             return Ok(similarReports);
         }
 
+        // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
+        [AllowAnonymous]
         [HttpGet("nearby")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> SearchNearby(

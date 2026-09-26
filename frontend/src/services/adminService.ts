@@ -85,7 +85,12 @@ export const deleteOrder = async (orderId: number) => {
 
 // Users Management
 export const getAllUsers = async () => {
-  const response = await fetch(`${API_BASE_URL}/dev/users`, {
+  // ---- CODE BEFORE FIX (V02) ----
+  // const response = await fetch(`${API_BASE_URL}/dev/users`, {
+  // ---- END CODE BEFORE FIX (V02) ----
+  // ---- FIXED (V02): the public dev endpoint was removed; use the Admin-only endpoint ----
+  // (auth now travels in the httpOnly cookie from V09, hence credentials: 'include')
+  const response = await fetch(`${API_BASE_URL}/admin/users`, {
     credentials: 'include',
     headers: getAuthHeaders(),
     cache: 'no-store',

@@ -81,7 +81,12 @@ export default function AdminUsersPage() {
         setIsLoading(true);
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
-        const response = await fetch(`${API_BASE_URL}/dev/users`, {
+        // ---- CODE BEFORE FIX (V02) ----
+        // const response = await fetch(`${API_BASE_URL}/dev/users`, {
+        // ---- END CODE BEFORE FIX (V02) ----
+        // ---- FIXED (V02): the public dev endpoint was removed; use the Admin-only endpoint ----
+        // (auth now travels in the httpOnly cookie from V09, hence credentials: 'include')
+        const response = await fetch(`${API_BASE_URL}/admin/users`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
