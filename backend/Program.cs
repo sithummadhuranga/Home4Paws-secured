@@ -252,9 +252,9 @@ else
 
 if (app.Environment.IsProduction())
 {
-    app.UseExceptionHandler("/Error");
+    // Errors are handled by GlobalExceptionMiddleware above - there is no /Error page
     app.UseHsts();
-    logger.LogInformation("🔒 Security: ✅ HSTS and Exception Handling enabled");
+    logger.LogInformation("🔒 Security: ✅ HSTS enabled");
 }
 
 // IMPORTANT: CORS must be before Authentication/Authorization
@@ -297,25 +297,27 @@ app.MapControllers();
 
 // Health check endpoints
 app.MapHealthChecks("/health");
-app.MapGet("/health/database", async (Home4Paws.API.Data.ApplicationDbContext dbContext) =>
+// FIXED (V07): the database exception (host, port, auth failure) is logged, never
+// returned, and the environment name is no longer exposed. The result of
+// CanConnectAsync is now checked - it used to report "healthy" with the DB down.
+app.MapGet("/health/database", async (Home4Paws.API.Data.ApplicationDbContext dbContext, ILogger<Program> healthLogger) =>
 {
     try
     {
-        await dbContext.Database.CanConnectAsync();
+        if (!await dbContext.Database.CanConnectAsync())
+        {
+            return Results.Json(new { status = "unhealthy", database = "unreachable" }, statusCode: 503);
+        }
         return Results.Ok(new { 
             status = "healthy", 
             database = "connected",
-            environment = app.Environment.EnvironmentName,
             timestamp = DateTime.UtcNow
         });
     }
     catch (Exception ex)
     {
-        return Results.Problem(
-            detail: ex.Message,
-            statusCode: 503,
-            title: "Database connection failed"
-        );
+        healthLogger.LogError(ex, "Database health check failed");
+        return Results.Json(new { status = "unhealthy", database = "unreachable" }, statusCode: 503);
     }
 })
 .WithName("DatabaseHealth")

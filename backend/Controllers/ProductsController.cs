@@ -43,11 +43,11 @@ public class ProductsController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log the exception with detailed information
-            _logger.LogError(ex, "Error getting products: {Message}, {StackTrace}", 
-                ex.Message, ex.StackTrace);
-            
-            return StatusCode(500, new { error = "Failed to retrieve products", details = ex.Message });
+            // FIXED (V07): details stay in the server log only, the client gets a generic
+            // message and a trace ID to quote
+            _logger.LogError(ex, "Error getting products (traceId {TraceId})", HttpContext.TraceIdentifier);
+
+            return StatusCode(500, new { error = "Failed to retrieve products", traceId = HttpContext.TraceIdentifier });
         }
     }
 
@@ -209,10 +209,11 @@ public class ProductsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error searching products with query: {Query}", query ?? "null");
+            // FIXED (V07): ex.Message is no longer returned to the client
             return StatusCode(500, new { 
                 success = false, 
                 message = "An error occurred while searching products",
-                error = ex.Message 
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }
