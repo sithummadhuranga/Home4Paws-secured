@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "e53f9cee-91be-4dde-95f5-c8bd637b2650",
+    "_postman_id": "5d2f6bd8-155d-4d49-ac6c-0275f08273df",
     "name": "Home4Paws - M2 Authorization Test Suite",
     "description": "SE4030 Member 2 (T.H.N.Nadushka, IT23294202). Access-control test matrix for V02, V03, V04, V05, V14.\nTests named 'SECURE:' assert the SECURE behaviour, so on the ORIGINAL code they FAIL (proving the vulnerability) and after the fixes they PASS. Tests named 'FUNCTIONAL:' check that legitimate access still works.\nRun the whole collection in order with the Collection Runner. Requires the local stack (see MEMBER2_PLAN.md). Set adminEmail/adminPassword as the CURRENT value of the collection variables locally (never commit a real password). Set Postman Settings > Working directory to this security-tests folder so test-pet.png is found. See security-tests/README.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -15,6 +15,9 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/auth/health"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -45,6 +48,9 @@
               "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -53,7 +59,10 @@
                 "exec": [
                   "pm.test(\"setup: login succeeded\", () => pm.response.to.have.status(200));",
                   "const j = pm.response.json();",
-                  "pm.collectionVariables.set(\"adminToken\", j.tokens.accessToken);",
+                  "// After V09 the access token is only sent as the httpOnly cookie h4p_at (not in the body)",
+                  "const sc = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).find(v => v.startsWith('h4p_at='));",
+                  "pm.test('setup: access-token cookie h4p_at received', () => pm.expect(sc).to.be.a('string'));",
+                  "pm.collectionVariables.set(\"adminToken\", sc ? sc.split(\";\")[0].substring(7) : \"\");",
                   "pm.collectionVariables.set(\"adminId\", j.user.id);"
                 ]
               }
@@ -75,6 +84,9 @@
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"M2\",\n  \"lastName\": \"UserA\",\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"{{userAPassword}}\",\n  \"confirmPassword\": \"{{userAPassword}}\",\n  \"agreeToTerms\": true\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -104,6 +116,9 @@
               "raw": "{\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"{{userAPassword}}\"\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -112,7 +127,10 @@
                 "exec": [
                   "pm.test(\"setup: login succeeded\", () => pm.response.to.have.status(200));",
                   "const j = pm.response.json();",
-                  "pm.collectionVariables.set(\"tokenA\", j.tokens.accessToken);",
+                  "// After V09 the access token is only sent as the httpOnly cookie h4p_at (not in the body)",
+                  "const sc = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).find(v => v.startsWith('h4p_at='));",
+                  "pm.test('setup: access-token cookie h4p_at received', () => pm.expect(sc).to.be.a('string'));",
+                  "pm.collectionVariables.set(\"tokenA\", sc ? sc.split(\";\")[0].substring(7) : \"\");",
                   "pm.collectionVariables.set(\"userAId\", j.user.id);"
                 ]
               }
@@ -134,6 +152,9 @@
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"M2\",\n  \"lastName\": \"UserB\",\n  \"email\": \"{{userBEmail}}\",\n  \"password\": \"{{userBPassword}}\",\n  \"confirmPassword\": \"{{userBPassword}}\",\n  \"agreeToTerms\": true\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -163,6 +184,9 @@
               "raw": "{\n  \"email\": \"{{userBEmail}}\",\n  \"password\": \"{{userBPassword}}\"\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -171,7 +195,10 @@
                 "exec": [
                   "pm.test(\"setup: login succeeded\", () => pm.response.to.have.status(200));",
                   "const j = pm.response.json();",
-                  "pm.collectionVariables.set(\"tokenB\", j.tokens.accessToken);",
+                  "// After V09 the access token is only sent as the httpOnly cookie h4p_at (not in the body)",
+                  "const sc = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).find(v => v.startsWith('h4p_at='));",
+                  "pm.test('setup: access-token cookie h4p_at received', () => pm.expect(sc).to.be.a('string'));",
+                  "pm.collectionVariables.set(\"tokenB\", sc ? sc.split(\";\")[0].substring(7) : \"\");",
                   "pm.collectionVariables.set(\"userBId\", j.user.id);"
                 ]
               }
@@ -193,6 +220,9 @@
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"M2\",\n  \"lastName\": \"UserC\",\n  \"email\": \"{{userCEmail}}\",\n  \"password\": \"{{userCPassword}}\",\n  \"confirmPassword\": \"{{userCPassword}}\",\n  \"agreeToTerms\": true\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -225,6 +255,9 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"M2 Test Category\",\n  \"description\": \"authz tests\"\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -331,6 +364,9 @@
               ]
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -435,6 +471,9 @@
                 }
               ]
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -541,6 +580,9 @@
               ]
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -567,6 +609,9 @@
             "header": [],
             "url": "{{baseUrl}}/api/dev/users"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -591,6 +636,9 @@
             ],
             "url": "{{baseUrl}}/api/dev/users"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -609,6 +657,9 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/admin/users"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -634,6 +685,9 @@
             ],
             "url": "{{baseUrl}}/api/admin/users"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -658,6 +712,9 @@
             ],
             "url": "{{baseUrl}}/api/admin/users"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -681,6 +738,9 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/reports"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -781,6 +841,9 @@
               ]
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -844,6 +907,9 @@
                 }
               ]
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -914,6 +980,9 @@
               ]
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -982,6 +1051,9 @@
                 }
               ]
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1052,6 +1124,9 @@
               ]
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1070,6 +1145,9 @@
             "method": "DELETE",
             "header": [],
             "url": "{{baseUrl}}/api/reports/{{r2}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1095,6 +1173,9 @@
             ],
             "url": "{{baseUrl}}/api/reports/{{r3}}"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1118,6 +1199,9 @@
               }
             ],
             "url": "{{baseUrl}}/api/reports/{{r3}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1143,6 +1227,9 @@
             ],
             "url": "{{baseUrl}}/api/reports/{{r3}}"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1161,6 +1248,9 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/reports/user/{{userAId}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1186,6 +1276,9 @@
             ],
             "url": "{{baseUrl}}/api/reports/user/{{userAId}}"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1209,6 +1302,9 @@
               }
             ],
             "url": "{{baseUrl}}/api/reports/user/{{userAId}}"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1237,6 +1333,9 @@
               "mode": "raw",
               "raw": "{\n  \"status\": \"Approved\",\n  \"adminNotes\": \"changed by anonymous attacker\"\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1270,6 +1369,9 @@
               "raw": "{\n  \"status\": \"Approved\",\n  \"adminNotes\": \"self-approved\"\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1301,6 +1403,9 @@
               "mode": "raw",
               "raw": "{\n  \"status\": \"Approved\",\n  \"adminNotes\": \"approved by admin\"\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1335,6 +1440,9 @@
               "raw": "{\n  \"name\": \"M2 Injected Product\",\n  \"description\": \"created without admin rights\",\n  \"sku\": \"M2-TEST-001\",\n  \"price\": 1.0,\n  \"stockQuantity\": 1,\n  \"imageUrl\": \"\",\n  \"categoryId\": {{categoryId}},\n  \"isFeatured\": false,\n  \"isActive\": true\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1367,6 +1475,9 @@
               "raw": "{\n  \"name\": \"M2 Injected Product\",\n  \"description\": \"created without admin rights\",\n  \"sku\": \"M2-TEST-001\",\n  \"price\": 1.0,\n  \"stockQuantity\": 1,\n  \"imageUrl\": \"\",\n  \"categoryId\": {{categoryId}},\n  \"isFeatured\": false,\n  \"isActive\": true\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1398,6 +1509,9 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"M2 Injected Product\",\n  \"description\": \"created without admin rights\",\n  \"sku\": \"M2-TEST-001\",\n  \"price\": 1.0,\n  \"stockQuantity\": 1,\n  \"imageUrl\": \"\",\n  \"categoryId\": {{categoryId}},\n  \"isFeatured\": false,\n  \"isActive\": true\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1432,6 +1546,9 @@
               "raw": "{\n  \"email\": \"{{userCEmail}}\"\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1459,6 +1576,9 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{userCEmail}}\",\n  \"password\": \"{{userCPassword}}\"\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1488,6 +1608,9 @@
               "raw": "{\n  \"email\": \"{{userCEmail}}\",\n  \"newPassword\": \"{{userCPassword}}\"\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1516,6 +1639,9 @@
               "raw": "{\n  \"firstName\": \"Back\",\n  \"lastName\": \"Door\",\n  \"email\": \"m2.backdoor.{{$timestamp}}@test.local\",\n  \"password\": \"Backdoor123\"\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1539,6 +1665,9 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/api/auth/cleanup-sessions"
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {
@@ -1564,6 +1693,9 @@
             ],
             "url": "{{baseUrl}}/api/auth/cleanup-sessions"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1588,6 +1720,9 @@
             ],
             "url": "{{baseUrl}}/api/auth/cleanup-sessions"
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
@@ -1601,7 +1736,7 @@
           ]
         },
         {
-          "name": "[V14] Anonymous POST /api/auth/logout",
+          "name": "[V14] Anonymous POST /api/auth/logout (no refresh cookie)",
           "request": {
             "method": "POST",
             "header": [
@@ -1616,13 +1751,16 @@
               "raw": "{\n  \"logoutFromAllDevices\": false\n}"
             }
           },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"SECURE: logout requires an authenticated caller\", () => pm.expect(pm.response.code).to.be.oneOf([401]));"
+                  "pm.test(\"DESIGN: logout needs no access token (after V09); without a refresh cookie nothing is revoked\", () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }
@@ -1647,6 +1785,9 @@
               "mode": "raw",
               "raw": "{\n  \"logoutFromAllDevices\": false\n}"
             }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
           },
           "event": [
             {

@@ -219,11 +219,12 @@ namespace Home4Paws.API.Controllers
         // ---- CODE BEFORE FIX (V14) ----
         // [HttpPost("logout")]
         // ---- END CODE BEFORE FIX (V14) ----
-        // ---- FIXED (V14): logout accepted anonymous calls. Now requires an authenticated caller.
-        // Note: LogoutAsync is still a stub (no refresh tokens are stored yet), so real token
-        // revocation depends on the session work in V09. ----
+        // ---- FIXED (V14): logout now really revokes the refresh token, which lives in an
+        // httpOnly cookie (V09). It deliberately has no [Authorize]: the access cookie expires
+        // after 15 minutes, and a 401 at that point would skip revocation and leave the user's
+        // session alive. Possession of the refresh cookie is the proof here; an anonymous call
+        // without it revokes nothing. cleanup-sessions below stays Admin-only. ----
         [HttpPost("logout")]
-        [Authorize]
         public async Task<ActionResult<LogoutResponse>> Logout([FromBody] LogoutRequest request)
         {
             var refreshToken = Request.Cookies[RefreshCookieName];

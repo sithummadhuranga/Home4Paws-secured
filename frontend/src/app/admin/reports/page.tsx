@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -65,8 +64,6 @@ interface PetReport {
 }
 
 export default function AdminReportsPage() {
-  // ---- FIXED (V03): the status endpoint is now Admin-only, so send the admin's token ----
-  const { token } = useAuth()
   const [reports, setReports] = useState<PetReport[]>([])
   const [filteredReports, setFilteredReports] = useState<PetReport[]>([])
   const [loading, setLoading] = useState(true)
@@ -108,10 +105,11 @@ export default function AdminReportsPage() {
         //   'Content-Type': 'application/json',
         // },
         // ---- END CODE BEFORE FIX (V03) ----
-        // ---- FIXED (V03): include the admin's Bearer token ----
+        // ---- FIXED (V03): the status endpoint is Admin-only. The admin's session is an
+        // httpOnly cookie (V09), so send it with credentials: 'include'. ----
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           status: newStatus,
