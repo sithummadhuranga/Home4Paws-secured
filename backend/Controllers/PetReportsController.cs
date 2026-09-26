@@ -43,16 +43,11 @@ namespace Home4Paws.API.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAll([FromQuery] PetReportSearchParams searchParams)
         {
-            try
-            {
-                var reports = await _petReportService.GetAllAsync(searchParams);
-                return Ok(reports);
-            }
-            catch (Exception ex)
-            {
-                // Return a simple error response for debugging
-                return BadRequest(new { error = ex.Message, details = ex.ToString() });
-            }
+            // FIXED (V07): used to return ex.ToString() (full stack trace) to the caller.
+            // Unexpected errors now go to GlobalExceptionMiddleware, which logs them and
+            // returns a generic 500 with a trace ID.
+            var reports = await _petReportService.GetAllAsync(searchParams);
+            return Ok(reports);
         }
 
         // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----
@@ -61,16 +56,9 @@ namespace Home4Paws.API.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllSimple()
         {
-            try
-            {
-                // Use empty search params to get all reports
-                var reports = await _petReportService.GetAllAsync(new PetReportSearchParams());
-                return Ok(reports);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message, details = ex.ToString() });
-            }
+            // FIXED (V07): same stack-trace leak as GetAll, now handled by GlobalExceptionMiddleware
+            var reports = await _petReportService.GetAllAsync(new PetReportSearchParams());
+            return Ok(reports);
         }
 
         // ---- FIXED (V03): public read, stays anonymous (lost/found browsing) ----

@@ -16,7 +16,9 @@ export interface BreedRecognitionError {
 }
 
 const ROBOFLOW_API_URL = 'https://serverless.roboflow.com/dog-breed-xpaq6/1';
-const ROBOFLOW_API_KEY = '9nJXN32BCObwlNXsVKCF';
+// Read from the environment at build time (frontend/.env.local or the Docker build
+// arg) instead of being hard-coded in the source and Git history
+const ROBOFLOW_API_KEY = process.env.NEXT_PUBLIC_ROBOFLOW_API_KEY ?? '';
 
 /**
  * Analyzes an image to detect dog breed using Roboflow API

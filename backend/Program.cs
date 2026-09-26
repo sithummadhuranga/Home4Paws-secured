@@ -6,6 +6,7 @@ using Home4Paws.API.Helpers;
 using Home4Paws.API.Middleware;
 // using Home4Paws.API.Services.Pet; // Removed because the namespace 'Pet' does not exist
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -61,7 +62,16 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 // Add JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings.GetValue<string>("SecretKey") ?? throw new ArgumentNullException("JwtSettings:SecretKey", "JWT SecretKey is required");
+// The signing key is never stored in appsettings - it comes from dotnet user-secrets
+// locally and from the JwtSettings__SecretKey environment variable in Docker/production
+var secretKey = jwtSettings.GetValue<string>("SecretKey");
+if (string.IsNullOrWhiteSpace(secretKey) || Encoding.ASCII.GetByteCount(secretKey) < 32)
+{
+    throw new InvalidOperationException(
+        "JwtSettings:SecretKey is missing or shorter than 32 characters. Set it with " +
+        "'dotnet user-secrets set \"JwtSettings:SecretKey\" \"<random 64-char value>\"' " +
+        "or the JwtSettings__SecretKey environment variable.");
+}
 var issuer = jwtSettings.GetValue<string>("Issuer") ?? throw new ArgumentNullException("JwtSettings:Issuer", "JWT Issuer is required");
 var audience = jwtSettings.GetValue<string>("Audience") ?? throw new ArgumentNullException("JwtSettings:Audience", "JWT Audience is required");
 
@@ -114,7 +124,9 @@ builder.Services.AddRateLimiter(options =>
 
 // Add Entity Framework with PostgreSQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' not found. Set it with dotnet user-secrets " +
+        "or the ConnectionStrings__DefaultConnection environment variable.");
 
 builder.Services.AddDbContext<Home4Paws.API.Data.ApplicationDbContext>(options =>
 {
@@ -124,9 +136,10 @@ builder.Services.AddDbContext<Home4Paws.API.Data.ApplicationDbContext>(options =
         npgsqlOptions.CommandTimeout(60);
     });
     
+    // EnableSensitiveDataLogging is deliberately not used: it writes SQL parameter
+    // values (password hashes, refresh tokens) into the logs
     if (builder.Environment.IsDevelopment())
     {
-        options.EnableSensitiveDataLogging();
         options.EnableDetailedErrors();
     }
     
@@ -187,7 +200,7 @@ var appName = builder.Configuration.GetValue<string>("ApplicationSettings:Applic
 logger.LogInformation("═══════════════════════════════════════════════════════");
 logger.LogInformation("🐾 {AppName}", appName);
 logger.LogInformation("{EnvironmentBadge} Environment: {Environment}", environmentBadge, app.Environment.EnvironmentName.ToUpper());
-logger.LogInformation("📊 Database: ✅ PostgreSQL (Supabase)");
+logger.LogInformation("📊 Database: ✅ PostgreSQL");
 logger.LogInformation("🌐 Base URL: {BaseUrl}", builder.Configuration.GetValue<string>("ExternalServices:BaseUrl"));
 logger.LogInformation("🔐 JWT: ✅ Configured with {Issuer}", issuer);
 logger.LogInformation("💾 Cache: ✅ Memory Cache Enabled");
@@ -240,9 +253,9 @@ else
 
 if (app.Environment.IsProduction())
 {
-    app.UseExceptionHandler("/Error");
+    // Errors are handled by GlobalExceptionMiddleware above - there is no /Error page
     app.UseHsts();
-    logger.LogInformation("🔒 Security: ✅ HSTS and Exception Handling enabled");
+    logger.LogInformation("🔒 Security: ✅ HSTS enabled");
 }
 
 // IMPORTANT: CORS must be before Authentication/Authorization
@@ -285,64 +298,45 @@ app.MapControllers();
 
 // Health check endpoints
 app.MapHealthChecks("/health");
-app.MapGet("/health/database", async (Home4Paws.API.Data.ApplicationDbContext dbContext) =>
+// FIXED (V07): the database exception (host, port, auth failure) is logged, never
+// returned, and the environment name is no longer exposed. The result of
+// CanConnectAsync is now checked - it used to report "healthy" with the DB down.
+app.MapGet("/health/database", async (Home4Paws.API.Data.ApplicationDbContext dbContext, ILogger<Program> healthLogger) =>
 {
     try
     {
-        await dbContext.Database.CanConnectAsync();
+        if (!await dbContext.Database.CanConnectAsync())
+        {
+            return Results.Json(new { status = "unhealthy", database = "unreachable" }, statusCode: 503);
+        }
         return Results.Ok(new { 
             status = "healthy", 
             database = "connected",
-            environment = app.Environment.EnvironmentName,
             timestamp = DateTime.UtcNow
         });
     }
     catch (Exception ex)
     {
-        return Results.Problem(
-            detail: ex.Message,
-            statusCode: 503,
-            title: "Database connection failed"
-        );
+        healthLogger.LogError(ex, "Database health check failed");
+        return Results.Json(new { status = "unhealthy", database = "unreachable" }, statusCode: 503);
     }
 })
 .WithName("DatabaseHealth")
 .WithOpenApi();
 
-// Enhanced API info endpoint
-app.MapGet("/api/info", (IConfiguration config, IWebHostEnvironment env) => new
+// FIXED (V08): API info is Admin-only now. It used to be anonymous and returned the
+// machine name, process ID, environment, CORS origins, base URL and feature flags,
+// which help an attacker fingerprint the host. Only the name and version are left;
+// the public liveness check stays at /health.
+app.MapGet("/api/info", (IConfiguration config) => new
 {
-    Application = new
-    {
-        Name = config.GetValue<string>("ApplicationSettings:ApplicationName", "Home4Paws Platform"),
-        Version = config.GetValue<string>("ApplicationSettings:Version", "1.0.0"),
-        Environment = env.EnvironmentName,
-        Schema = env.IsDevelopment() ? "development" : "production"
-    },
-    Configuration = new
-    {
-        DatabaseConfigured = true,
-        BaseUrl = config.GetValue<string>("ExternalServices:BaseUrl"),
-        CorsEnabled = true,
-        AllowedOrigins = allowedOrigins,
-        Features = new
-        {
-            EnableSwagger = config.GetValue<bool>("Features:EnableSwagger"),
-            EnableDetailedErrors = config.GetValue<bool>("Features:EnableDetailedErrors"),
-            EnableChatbot = config.GetValue<bool>("Features:EnableChatbot"),
-            EnableFileUpload = config.GetValue<bool>("Features:EnableFileUpload")
-        }
-    },
-    Runtime = new
-    {
-        Timestamp = DateTime.UtcNow,
-        MachineName = Environment.MachineName,
-        ProcessId = Environment.ProcessId
-    }
+    Name = config.GetValue<string>("ApplicationSettings:ApplicationName", "Home4Paws Platform"),
+    Version = config.GetValue<string>("ApplicationSettings:Version", "1.0.0")
 })
+.RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
 .WithName("GetApiInfo")
 .WithOpenApi()
-.WithSummary("Get comprehensive API information and configuration");
+.WithSummary("Application name and version (Admin only)");
 
 logger.LogInformation("🎯 Home4Paws API started successfully!");
 logger.LogInformation("📋 Available endpoints:");
@@ -392,25 +386,45 @@ using (var scope = app.Services.CreateScope())
                 logger.LogInformation("✅ Database is up to date");
             }
             
-            // Seed test admin user if not exists (only in development)
-            if (app.Environment.IsDevelopment() && !context.Users.Any())
+            // First Admin account. There is no built-in default account any more: the
+            // email and password come from SeedAdmin:Email / SeedAdmin:Password
+            // (user-secrets locally, SeedAdmin__Email / SeedAdmin__Password env vars
+            // elsewhere), the password must be strong, and it is never logged.
+            if (!context.Users.Any(u => u.Role == "Admin"))
             {
-                var adminUser = new Home4Paws.API.Models.Entities.User
+                var seedEmail = builder.Configuration["SeedAdmin:Email"]?.Trim().ToLowerInvariant();
+                var seedPassword = builder.Configuration["SeedAdmin:Password"];
+
+                if (string.IsNullOrWhiteSpace(seedEmail) || string.IsNullOrWhiteSpace(seedPassword))
                 {
-                    FirstName = "Admin",
-                    LastName = "User", 
-                    Email = "admin@home4paws.lk",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
-                    Role = "Admin",
-                    IsActive = true,
-                    EmailVerified = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                
-                context.Users.Add(adminUser);
-                await context.SaveChangesAsync();
-                logger.LogInformation("👤 Admin user seeded: admin@home4paws.lk / Admin123!");
+                    logger.LogWarning("⚠️ No Admin account exists. Set SeedAdmin:Email and SeedAdmin:Password and restart to create one.");
+                }
+                // 12+ characters with upper and lower case, a number and a symbol
+                else if (!System.Text.RegularExpressions.Regex.IsMatch(seedPassword, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$"))
+                {
+                    logger.LogError("❌ SeedAdmin:Password is too weak (needs 12+ characters with upper and lower case, a number and a symbol). Admin account not created.");
+                }
+                else if (context.Users.Any(u => u.Email == seedEmail))
+                {
+                    logger.LogError("❌ SeedAdmin:Email {Email} already belongs to a non-admin account. Admin account not created.", seedEmail);
+                }
+                else
+                {
+                    context.Users.Add(new Home4Paws.API.Models.Entities.User
+                    {
+                        FirstName = "Admin",
+                        LastName = "User",
+                        Email = seedEmail,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(seedPassword, workFactor: 12),
+                        Role = "Admin",
+                        IsActive = true,
+                        EmailVerified = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                    await context.SaveChangesAsync();
+                    logger.LogInformation("👤 Admin account created for {Email}. Remove SeedAdmin:Password from configuration now.", seedEmail);
+                }
             }
         }
     }

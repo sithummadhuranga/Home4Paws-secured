@@ -64,6 +64,41 @@ jobs:
       - name: Run tests
         run: dotnet test Home4Paws.sln --no-build --configuration Release --verbosity normal
 
+  # Secret scan (V01): fails if a password, key or token is committed
+  secret-scan:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.21.2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # Fails if any secret is present in the files as they are now
+      - name: Scan working tree
+        run: gitleaks dir . --redact --no-banner -v
+
+      # Fails if a pull request adds a secret in any of its commits, even one a later
+      # commit removes again. The baseline file below excludes the one already-known
+      # exception: the Roboflow key from commit 2a3b001 (pre-dates the V01 fix), since
+      # that PR's base..head range still crosses it and history can't be rewritten
+      # without breaking everyone's existing clone. See .gitleaks-baseline.json.
+      - name: Scan pull request commits
+        if: github.event_name == 'pull_request'
+        run: |
+          gitleaks git . --redact --no-banner -v \
+            --baseline-path .gitleaks-baseline.json \
+            --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
   # Optional: Only run if both frontend and backend pass
   deployment-ready:
     name: Deployment Ready
