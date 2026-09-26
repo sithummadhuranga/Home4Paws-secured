@@ -1,0 +1,55 @@
+name: Dependency audit
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 3 * * 1'
+
+jobs:
+  npm-audit:
+    name: npm audit (frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fails the build on critical advisories. Known high/moderate ones are tracked
+      # in the report and reviewed through Dependabot.
+      - name: Audit
+        run: npm audit --audit-level=critical
+
+  nuget-audit:
+    name: NuGet vulnerability scan (backend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Home4Paws.API.csproj
+
+      - name: Check for vulnerable packages
+        run: |
+          dotnet list Home4Paws.API.csproj package --vulnerable --include-transitive | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then
+            echo "Vulnerable NuGet packages found"
+            exit 1
+          fi

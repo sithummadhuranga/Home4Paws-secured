@@ -100,7 +100,7 @@ const formatLKR = (amountInUSD: number) => {
 };
 
 export default function AnalyticsPage() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [_timeRange, setTimeRange] = useState('30d');
@@ -109,15 +109,15 @@ export default function AnalyticsPage() {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
   const fetchAnalytics = useCallback(async () => {
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     try {
       setIsLoading(true);
-      
+
       const [ordersRes, productsRes, usersRes] = await Promise.all([
         fetch(`${API_BASE_URL}/orders/admin/all?page=1&pageSize=1000`, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
+          credentials: 'include',
+          headers: {
             'Content-Type': 'application/json',
           },
         }),
@@ -128,9 +128,10 @@ export default function AnalyticsPage() {
         // fetch(`${API_BASE_URL}/dev/users`, {
         // ---- END CODE BEFORE FIX (V02) ----
         // ---- FIXED (V02): the public dev endpoint was removed; use the Admin-only endpoint ----
+        // (auth now travels in the httpOnly cookie from V09, hence credentials: 'include')
         fetch(`${API_BASE_URL}/admin/users`, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
+          credentials: 'include',
+          headers: {
             'Content-Type': 'application/json',
           },
         }),
@@ -217,11 +218,11 @@ export default function AnalyticsPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [token, API_BASE_URL]);
+  }, [isAuthenticated, API_BASE_URL]);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [token, _timeRange, fetchAnalytics]);
+  }, [isAuthenticated, _timeRange, fetchAnalytics]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);

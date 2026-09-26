@@ -2,9 +2,10 @@ import { Feedback, CreateFeedbackDto } from '@/types'; // ✅ Add this import
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
-const getAuthHeaders = (token: string) => ({
+// The access token lives in an httpOnly cookie, so every call below pairs this
+// with credentials: 'include' instead of an Authorization header
+const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
-  'Authorization': `Bearer ${token}`
 });
 
 export const getFeaturedFeedbacks = async (count: number = 6): Promise<Feedback[]> => {
@@ -43,32 +44,35 @@ export const getApprovedFeedbacks = async (): Promise<Feedback[]> => {
   }
 };
 
-export const getMyFeedbacks = async (token: string): Promise<Feedback[]> => {
+export const getMyFeedbacks = async (): Promise<Feedback[]> => {
   const response = await fetch(`${API_BASE_URL}/feedbacks/my`, {
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
     cache: 'no-store',
   });
-  
+
   if (!response.ok) throw new Error('Failed to fetch your feedbacks');
   return await response.json();
 };
 
-export const createFeedback = async (token: string, data: CreateFeedbackDto): Promise<Feedback> => {
+export const createFeedback = async (data: CreateFeedbackDto): Promise<Feedback> => {
   const response = await fetch(`${API_BASE_URL}/feedbacks`, {
     method: 'POST',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-  
+
   if (!response.ok) throw new Error('Failed to create feedback');
   return await response.json();
 };
 
-export const deleteFeedback = async (token: string, id: number): Promise<void> => {
+export const deleteFeedback = async (id: number): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/feedbacks/${id}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) throw new Error('Failed to delete feedback');
 };
