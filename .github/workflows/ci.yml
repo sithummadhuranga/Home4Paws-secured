@@ -88,12 +88,15 @@ jobs:
         run: gitleaks dir . --redact --no-banner -v
 
       # Fails if a pull request adds a secret in any of its commits, even one a later
-      # commit removes again. Older history is not rescanned: the secrets leaked before
-      # the V01 fix are rotated and documented in the report as not fixable.
+      # commit removes again. The baseline file below excludes the one already-known
+      # exception: the Roboflow key from commit 2a3b001 (pre-dates the V01 fix), since
+      # that PR's base..head range still crosses it and history can't be rewritten
+      # without breaking everyone's existing clone. See .gitleaks-baseline.json.
       - name: Scan pull request commits
         if: github.event_name == 'pull_request'
         run: |
           gitleaks git . --redact --no-banner -v \
+            --baseline-path .gitleaks-baseline.json \
             --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
 
   # Optional: Only run if both frontend and backend pass
