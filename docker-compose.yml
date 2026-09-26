@@ -11,6 +11,7 @@ services:
         # rewrites() is resolved at build time, so this has to be a build arg
         # too, not just the runtime environment entry below
         API_INTERNAL_URL: http://backend:80
+        NEXT_PUBLIC_ROBOFLOW_API_KEY: ${ROBOFLOW_API_KEY:-}
     ports:
       - "3000:3000"
     depends_on:
@@ -25,7 +26,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=home4paws_dev;Username=postgres;Password=password
+      # Secrets come from the root .env file (gitignored) - see .env.example
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=home4paws_dev;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
       - Google__ClientId=${GOOGLE_CLIENT_ID}
       - Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
       - Google__RedirectUri=http://localhost:5185/api/auth/google/callback
@@ -39,7 +42,7 @@ services:
     environment:
       - POSTGRES_DB=home4paws_dev
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

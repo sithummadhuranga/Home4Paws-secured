@@ -64,6 +64,38 @@ jobs:
       - name: Run tests
         run: dotnet test Home4Paws.sln --no-build --configuration Release --verbosity normal
 
+  # Secret scan (V01): fails if a password, key or token is committed
+  secret-scan:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.21.2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # Fails if any secret is present in the files as they are now
+      - name: Scan working tree
+        run: gitleaks dir . --redact --no-banner -v
+
+      # Fails if a pull request adds a secret in any of its commits, even one a later
+      # commit removes again. Older history is not rescanned: the secrets leaked before
+      # the V01 fix are rotated and documented in the report as not fixable.
+      - name: Scan pull request commits
+        if: github.event_name == 'pull_request'
+        run: |
+          gitleaks git . --redact --no-banner -v \
+            --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
   # Optional: Only run if both frontend and backend pass
   deployment-ready:
     name: Deployment Ready

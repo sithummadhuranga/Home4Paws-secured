@@ -61,7 +61,16 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 // Add JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings.GetValue<string>("SecretKey") ?? throw new ArgumentNullException("JwtSettings:SecretKey", "JWT SecretKey is required");
+// The signing key is never stored in appsettings - it comes from dotnet user-secrets
+// locally and from the JwtSettings__SecretKey environment variable in Docker/production
+var secretKey = jwtSettings.GetValue<string>("SecretKey");
+if (string.IsNullOrWhiteSpace(secretKey) || Encoding.ASCII.GetByteCount(secretKey) < 32)
+{
+    throw new InvalidOperationException(
+        "JwtSettings:SecretKey is missing or shorter than 32 characters. Set it with " +
+        "'dotnet user-secrets set \"JwtSettings:SecretKey\" \"<random 64-char value>\"' " +
+        "or the JwtSettings__SecretKey environment variable.");
+}
 var issuer = jwtSettings.GetValue<string>("Issuer") ?? throw new ArgumentNullException("JwtSettings:Issuer", "JWT Issuer is required");
 var audience = jwtSettings.GetValue<string>("Audience") ?? throw new ArgumentNullException("JwtSettings:Audience", "JWT Audience is required");
 
@@ -114,7 +123,9 @@ builder.Services.AddRateLimiter(options =>
 
 // Add Entity Framework with PostgreSQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' not found. Set it with dotnet user-secrets " +
+        "or the ConnectionStrings__DefaultConnection environment variable.");
 
 builder.Services.AddDbContext<Home4Paws.API.Data.ApplicationDbContext>(options =>
 {
@@ -187,7 +198,7 @@ var appName = builder.Configuration.GetValue<string>("ApplicationSettings:Applic
 logger.LogInformation("═══════════════════════════════════════════════════════");
 logger.LogInformation("🐾 {AppName}", appName);
 logger.LogInformation("{EnvironmentBadge} Environment: {Environment}", environmentBadge, app.Environment.EnvironmentName.ToUpper());
-logger.LogInformation("📊 Database: ✅ PostgreSQL (Supabase)");
+logger.LogInformation("📊 Database: ✅ PostgreSQL");
 logger.LogInformation("🌐 Base URL: {BaseUrl}", builder.Configuration.GetValue<string>("ExternalServices:BaseUrl"));
 logger.LogInformation("🔐 JWT: ✅ Configured with {Issuer}", issuer);
 logger.LogInformation("💾 Cache: ✅ Memory Cache Enabled");
