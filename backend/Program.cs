@@ -6,6 +6,7 @@ using Home4Paws.API.Helpers;
 using Home4Paws.API.Middleware;
 // using Home4Paws.API.Services.Pet; // Removed because the namespace 'Pet' does not exist
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -323,40 +324,19 @@ app.MapGet("/health/database", async (Home4Paws.API.Data.ApplicationDbContext db
 .WithName("DatabaseHealth")
 .WithOpenApi();
 
-// Enhanced API info endpoint
-app.MapGet("/api/info", (IConfiguration config, IWebHostEnvironment env) => new
+// FIXED (V08): API info is Admin-only now. It used to be anonymous and returned the
+// machine name, process ID, environment, CORS origins, base URL and feature flags,
+// which help an attacker fingerprint the host. Only the name and version are left;
+// the public liveness check stays at /health.
+app.MapGet("/api/info", (IConfiguration config) => new
 {
-    Application = new
-    {
-        Name = config.GetValue<string>("ApplicationSettings:ApplicationName", "Home4Paws Platform"),
-        Version = config.GetValue<string>("ApplicationSettings:Version", "1.0.0"),
-        Environment = env.EnvironmentName,
-        Schema = env.IsDevelopment() ? "development" : "production"
-    },
-    Configuration = new
-    {
-        DatabaseConfigured = true,
-        BaseUrl = config.GetValue<string>("ExternalServices:BaseUrl"),
-        CorsEnabled = true,
-        AllowedOrigins = allowedOrigins,
-        Features = new
-        {
-            EnableSwagger = config.GetValue<bool>("Features:EnableSwagger"),
-            EnableDetailedErrors = config.GetValue<bool>("Features:EnableDetailedErrors"),
-            EnableChatbot = config.GetValue<bool>("Features:EnableChatbot"),
-            EnableFileUpload = config.GetValue<bool>("Features:EnableFileUpload")
-        }
-    },
-    Runtime = new
-    {
-        Timestamp = DateTime.UtcNow,
-        MachineName = Environment.MachineName,
-        ProcessId = Environment.ProcessId
-    }
+    Name = config.GetValue<string>("ApplicationSettings:ApplicationName", "Home4Paws Platform"),
+    Version = config.GetValue<string>("ApplicationSettings:Version", "1.0.0")
 })
+.RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
 .WithName("GetApiInfo")
 .WithOpenApi()
-.WithSummary("Get comprehensive API information and configuration");
+.WithSummary("Application name and version (Admin only)");
 
 logger.LogInformation("🎯 Home4Paws API started successfully!");
 logger.LogInformation("📋 Available endpoints:");
