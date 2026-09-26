@@ -29,6 +29,8 @@ services:
       # Secrets come from the root .env file (gitignored) - see .env.example
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=home4paws_dev;Username=postgres;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       - JwtSettings__SecretKey=${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
+      - SeedAdmin__Email=${SEED_ADMIN_EMAIL:-}
+      - SeedAdmin__Password=${SEED_ADMIN_PASSWORD:-}
       - Google__ClientId=${GOOGLE_CLIENT_ID}
       - Google__ClientSecret=${GOOGLE_CLIENT_SECRET}
       - Google__RedirectUri=http://localhost:5185/api/auth/google/callback

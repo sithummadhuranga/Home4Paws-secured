@@ -135,9 +135,10 @@ builder.Services.AddDbContext<Home4Paws.API.Data.ApplicationDbContext>(options =
         npgsqlOptions.CommandTimeout(60);
     });
     
+    // EnableSensitiveDataLogging is deliberately not used: it writes SQL parameter
+    // values (password hashes, refresh tokens) into the logs
     if (builder.Environment.IsDevelopment())
     {
-        options.EnableSensitiveDataLogging();
         options.EnableDetailedErrors();
     }
     
@@ -403,25 +404,45 @@ using (var scope = app.Services.CreateScope())
                 logger.LogInformation("✅ Database is up to date");
             }
             
-            // Seed test admin user if not exists (only in development)
-            if (app.Environment.IsDevelopment() && !context.Users.Any())
+            // First Admin account. There is no built-in default account any more: the
+            // email and password come from SeedAdmin:Email / SeedAdmin:Password
+            // (user-secrets locally, SeedAdmin__Email / SeedAdmin__Password env vars
+            // elsewhere), the password must be strong, and it is never logged.
+            if (!context.Users.Any(u => u.Role == "Admin"))
             {
-                var adminUser = new Home4Paws.API.Models.Entities.User
+                var seedEmail = builder.Configuration["SeedAdmin:Email"]?.Trim().ToLowerInvariant();
+                var seedPassword = builder.Configuration["SeedAdmin:Password"];
+
+                if (string.IsNullOrWhiteSpace(seedEmail) || string.IsNullOrWhiteSpace(seedPassword))
                 {
-                    FirstName = "Admin",
-                    LastName = "User", 
-                    Email = "admin@home4paws.lk",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
-                    Role = "Admin",
-                    IsActive = true,
-                    EmailVerified = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                
-                context.Users.Add(adminUser);
-                await context.SaveChangesAsync();
-                logger.LogInformation("👤 Admin user seeded: admin@home4paws.lk / Admin123!");
+                    logger.LogWarning("⚠️ No Admin account exists. Set SeedAdmin:Email and SeedAdmin:Password and restart to create one.");
+                }
+                // 12+ characters with upper and lower case, a number and a symbol
+                else if (!System.Text.RegularExpressions.Regex.IsMatch(seedPassword, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$"))
+                {
+                    logger.LogError("❌ SeedAdmin:Password is too weak (needs 12+ characters with upper and lower case, a number and a symbol). Admin account not created.");
+                }
+                else if (context.Users.Any(u => u.Email == seedEmail))
+                {
+                    logger.LogError("❌ SeedAdmin:Email {Email} already belongs to a non-admin account. Admin account not created.", seedEmail);
+                }
+                else
+                {
+                    context.Users.Add(new Home4Paws.API.Models.Entities.User
+                    {
+                        FirstName = "Admin",
+                        LastName = "User",
+                        Email = seedEmail,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(seedPassword, workFactor: 12),
+                        Role = "Admin",
+                        IsActive = true,
+                        EmailVerified = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                    await context.SaveChangesAsync();
+                    logger.LogInformation("👤 Admin account created for {Email}. Remove SeedAdmin:Password from configuration now.", seedEmail);
+                }
             }
         }
     }
