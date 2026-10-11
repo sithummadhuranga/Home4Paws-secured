@@ -1,0 +1,22 @@
+[
+ {
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 19,
+  "EndLine": 19,
+  "StartColumn": 8,
+  "EndColumn": 48,
+  "Match": "ROBOFLOW_API_KEY = 'REDACTED'",
+  "Secret": "REDACTED",
+  "File": "frontend/src/services/breedRecognition.ts",
+  "SymlinkFile": "",
+  "Commit": "2a3b001fcb34c3588a6686119b7c28f37d410dff",
+  "Entropy": 4.0219283,
+  "Author": "Sithum Madhuranga",
+  "Email": "sithummadhu.uni@gmail.com",
+  "Date": "2025-10-26T10:32:09Z",
+  "Message": "Add AI dog breed recognition feature\n\nIntroduces a new BreedRecognition component and supporting service for AI-powered dog breed identification. Integrates the feature into the About page, allowing users to upload a dog photo and receive breed predictions using the Roboflow API.",
+  "Tags": [],
+  "RuleID": "generic-api-key",
+  "Fingerprint": "2a3b001fcb34c3588a6686119b7c28f37d410dff:frontend/src/services/breedRecognition.ts:generic-api-key:19"
+ }
+]

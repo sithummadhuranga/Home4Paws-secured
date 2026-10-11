@@ -80,7 +80,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function AdminDashboard() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,15 +88,15 @@ export default function AdminDashboard() {
   const [_searchTerm, _setSearchTerm] = useState('');
 
   const fetchOrders = useCallback(async () => {
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     try {
       setIsLoading(true);
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
       const response = await fetch(`${API_BASE_URL}/orders/admin/dashboard-stats`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchOrders();

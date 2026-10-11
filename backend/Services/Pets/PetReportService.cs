@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Home4Paws.API.DataManager;
+using Home4Paws.API.Helpers;
 using Home4Paws.API.Models.Entities;
 using Home4Paws.API.Models.Pets;
 using Microsoft.AspNetCore.Hosting;
@@ -39,7 +40,7 @@ namespace Home4Paws.API.Services.Pets
 
         public async Task<PetReportResponse> CreateAsync(CreatePetReportRequest request)
         {
-            ValidatePhotos(request.Photos);
+            await ValidatePhotos(request.Photos);
 
             var photoUrls = await SavePhotos(request.Photos);
 
@@ -102,7 +103,7 @@ namespace Home4Paws.API.Services.Pets
             // Handle new photos if provided
             if (request.NewPhotos != null && request.NewPhotos.Any())
             {
-                ValidatePhotos(request.NewPhotos);
+                await ValidatePhotos(request.NewPhotos);
                 var newPhotoUrls = await SavePhotos(request.NewPhotos);
                 
                 // Delete old photos
@@ -160,7 +161,7 @@ namespace Home4Paws.API.Services.Pets
             await _repository.DeleteAsync(id);
         }
 
-        private void ValidatePhotos(IFormFile[] photos)
+        private async Task ValidatePhotos(IFormFile[] photos)
         {
             if (photos == null || !photos.Any())
                 throw new ArgumentException("At least one photo is required");
@@ -176,6 +177,9 @@ namespace Home4Paws.API.Services.Pets
                 var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
                 if (!_allowedExtensions.Contains(extension))
                     throw new ArgumentException($"File {photo.FileName} has invalid extension. Allowed: jpg, jpeg, png");
+
+                if (await ImageFileValidator.GetImageExtensionAsync(photo) == null)
+                    throw new ArgumentException($"File {photo.FileName} is not a valid JPEG or PNG image");
             }
         }
 
@@ -187,7 +191,8 @@ namespace Home4Paws.API.Services.Pets
 
             foreach (var photo in photos)
             {
-                var uniqueFileName = $"{Guid.NewGuid()}{Path.GetExtension(photo.FileName)}";
+                var realExtension = await ImageFileValidator.GetImageExtensionAsync(photo);
+                var uniqueFileName = $"{Guid.NewGuid()}{realExtension}";
                 var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
                 using (var fileStream = new FileStream(filePath, FileMode.Create))

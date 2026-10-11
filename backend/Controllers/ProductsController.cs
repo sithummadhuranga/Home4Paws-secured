@@ -43,11 +43,11 @@ public class ProductsController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log the exception with detailed information
-            _logger.LogError(ex, "Error getting products: {Message}, {StackTrace}", 
-                ex.Message, ex.StackTrace);
-            
-            return StatusCode(500, new { error = "Failed to retrieve products", details = ex.Message });
+            // FIXED (V07): details stay in the server log only, the client gets a generic
+            // message and a trace ID to quote
+            _logger.LogError(ex, "Error getting products (traceId {TraceId})", HttpContext.TraceIdentifier);
+
+            return StatusCode(500, new { error = "Failed to retrieve products", traceId = HttpContext.TraceIdentifier });
         }
     }
 
@@ -73,8 +73,15 @@ public class ProductsController : ControllerBase
 
     // POST: api/products
     // Admin-only endpoint to create a new product.
+    // ---- CODE BEFORE FIX (V04) ----
+    // [HttpPost]
+    // //[Authorize(Roles = "Admin")]
+    // ---- END CODE BEFORE FIX (V04) ----
+    // ---- FIXED (V04): the admin check was commented out, so anyone (even without a token)
+    // could create products. Restored so only authenticated users in the Admin role can
+    // create products, matching PUT and DELETE below. ----
     [HttpPost]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ProductDto>> CreateProduct([FromBody] CreateUpdateProductDto productDto)
     {
         // Use AutoMapper to convert the incoming DTO to a Product entity
@@ -202,10 +209,11 @@ public class ProductsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error searching products with query: {Query}", query ?? "null");
+            // FIXED (V07): ex.Message is no longer returned to the client
             return StatusCode(500, new { 
                 success = false, 
                 message = "An error occurred while searching products",
-                error = ex.Message 
+                traceId = HttpContext.TraceIdentifier
             });
         }
     }

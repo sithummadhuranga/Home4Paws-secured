@@ -57,6 +57,9 @@ namespace Home4Paws.API.Data
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
                 entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+                entity.Property(e => e.FailedLoginAttempts).HasColumnName("failed_login_attempts").HasDefaultValue(0);
+                entity.Property(e => e.LockoutEnd).HasColumnName("lockout_end");
+                entity.Property(e => e.AuthProvider).HasColumnName("auth_provider").HasMaxLength(20).HasDefaultValue("Local");
 
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.HasIndex(e => e.IsActive);

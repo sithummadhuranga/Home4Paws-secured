@@ -54,7 +54,7 @@ interface CategoryWithProductCount extends Category {
 }
 
 export default function CategoriesPage() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [categories, setCategories] = useState<CategoryWithProductCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -69,13 +69,13 @@ export default function CategoriesPage() {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
   const fetchCategories = useCallback(async () => {
-    if (!token) return;
-    
+    if (!isAuthenticated) return;
+
     try {
       setIsLoading(true);
       const response = await fetch(`${API_BASE_URL}/categories`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -92,7 +92,7 @@ export default function CategoriesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [token, API_BASE_URL]);
+  }, [isAuthenticated, API_BASE_URL]);
 
   useEffect(() => {
     fetchCategories();
@@ -127,7 +127,7 @@ export default function CategoriesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error('Authentication required');
       return;
     }
@@ -148,8 +148,8 @@ export default function CategoriesPage() {
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -175,7 +175,7 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (category: CategoryWithProductCount) => {
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error('Authentication required');
       return;
     }
@@ -195,8 +195,8 @@ export default function CategoriesPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/categories/${category.id}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });

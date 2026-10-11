@@ -100,6 +100,14 @@ export default function AdminReportsPage() {
     try {
       const response = await fetch(`http://localhost:5185/api/reports/${reportId}/status`, {
         method: 'PUT',
+        // ---- CODE BEFORE FIX (V03) ----
+        // headers: {
+        //   'Content-Type': 'application/json',
+        // },
+        // ---- END CODE BEFORE FIX (V03) ----
+        // ---- FIXED (V03): the status endpoint is Admin-only. The admin's session is an
+        // httpOnly cookie (V09), so send it with credentials: 'include'. ----
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

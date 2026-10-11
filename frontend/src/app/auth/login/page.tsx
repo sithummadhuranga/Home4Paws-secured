@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Heart, ArrowLeft, Loader2, Mail, Lock, Sparkles } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import { toast } from "sonner"
 
 export default function LoginPage() {
@@ -30,7 +31,7 @@ export default function LoginPage() {
     }
 
     try {
-      await login(formData.email, formData.password)
+      await login(formData.email, formData.password, formData.rememberMe)
       toast.success("Welcome back!")
     } catch (error) {
       console.error("Login error:", error)
@@ -114,7 +115,7 @@ export default function LoginPage() {
               )}
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} method="post" className="space-y-6">
                 {/* Email Field */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-purple-200 font-semibold flex items-center gap-2">
@@ -207,6 +208,15 @@ export default function LoginPage() {
                     💡 <strong>Demo:</strong> Use any email/password to sign in
                   </p>
                 </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-purple-400/20" />
+                  <span className="text-purple-400/60 text-sm">or</span>
+                  <div className="flex-1 h-px bg-purple-400/20" />
+                </div>
+
+                <GoogleSignInButton />
               </form>
 
               {/* Footer */}

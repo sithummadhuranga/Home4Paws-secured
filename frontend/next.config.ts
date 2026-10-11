@@ -47,20 +47,43 @@ const nextConfig: NextConfig = {
     reactStrictMode: false, // Disable for faster dev
   }),
   
-  // API route optimization
+  // Proxies /api/* to the real backend server-side, so the browser only ever
+  // talks to its own origin. That makes the auth cookies same-origin instead
+  // of cross-origin, which is what was silently dropping them on fetch()
+  // calls (NEXT_PUBLIC_API_URL stays same-origin/relative for the browser;
+  // this separate server-only var points at the actual backend to proxy to)
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185';
-    
+    const backendUrl = process.env.API_INTERNAL_URL || 'http://localhost:5185';
+
     return [
       {
         source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
 
   // Headers for better caching
   async headers() {
+    // `next build` always bakes in NODE_ENV=production, even for this local
+    // docker stack, so that's not a reliable way to tell dev and prod apart -
+    // both localhost:5185 and the real API are allowed rather than guessing
+    const csp = [
+      "default-src 'self'",
+      // Next.js's App Router injects inline hydration scripts, so a strict
+      // script-src without 'unsafe-inline' breaks every page. A nonce-based
+      // CSP (via middleware) would close this gap properly - noted as a
+      // follow-up rather than done here, since that's a bigger change.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https://images.unsplash.com https://api.dicebear.com https://via.placeholder.com https://placehold.co",
+      "font-src 'self'",
+      "connect-src 'self' http://localhost:5185 https://home4paws-api.railway.app",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
@@ -76,6 +99,10 @@ const nextConfig: NextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: csp,
           },
         ],
       },

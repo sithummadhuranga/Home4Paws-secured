@@ -20,13 +20,13 @@ export async function getActivePetReports(): Promise<PetFinderDto[]> {
 }
 
 /**
- * Fetch current user's pet reports from JWT token
+ * Fetch current user's pet reports
  */
-export async function getUserPetReports(token: string): Promise<UserPetReportDto[]> {
+export async function getUserPetReports(): Promise<UserPetReportDto[]> {
   const response = await fetch(`${API_URL}/api/reports/user/my-reports`, {
     method: 'GET',
+    credentials: 'include',
     headers: {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
   })
@@ -44,11 +44,11 @@ export async function getUserPetReports(token: string): Promise<UserPetReportDto
 /**
  * Admin: Fetch all pet reports for admin dashboard
  */
-export async function getAllPetReportsForAdmin(token: string): Promise<AdminPetReportDto[]> {
+export async function getAllPetReportsForAdmin(): Promise<AdminPetReportDto[]> {
   const response = await fetch(`${API_URL}/api/reports/admin/all`, {
     method: 'GET',
+    credentials: 'include',
     headers: {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
   })
@@ -70,14 +70,13 @@ export async function getAllPetReportsForAdmin(token: string): Promise<AdminPetR
  * Admin: Update report status
  */
 export async function updateReportStatus(
-  token: string,
   reportId: string,
   statusUpdate: UpdateReportStatusRequest
 ): Promise<void> {
   const response = await fetch(`${API_URL}/api/reports/${reportId}/status`, {
     method: 'PATCH',
+    credentials: 'include',
     headers: {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(statusUpdate),

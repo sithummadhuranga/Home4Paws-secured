@@ -90,7 +90,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function AdminOrdersPage() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [ordersData, setOrdersData] = useState<AdminOrdersResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -100,7 +100,7 @@ export default function AdminOrdersPage() {
   const [endDate, _setEndDate] = useState('');
 
   const fetchOrders = useCallback(async () => {
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     try {
       setIsLoading(true);
@@ -128,8 +128,8 @@ export default function AdminOrdersPage() {
       }
 
       const response = await fetch(`${API_BASE_URL}/orders/admin/all?${params}`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -146,7 +146,7 @@ export default function AdminOrdersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [token, currentPage, statusFilter]);
+  }, [isAuthenticated, currentPage, statusFilter]);
 
   useEffect(() => {
     fetchOrders();

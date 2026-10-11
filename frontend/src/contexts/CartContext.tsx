@@ -224,7 +224,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, initialState);
-  const { token, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -315,7 +315,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const processOrder = async (): Promise<string> => {
-    if (!token) {
+    if (!isAuthenticated) {
       throw new Error('Please log in to place an order');
     }
 
@@ -350,9 +350,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
       const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(orderData)
       });

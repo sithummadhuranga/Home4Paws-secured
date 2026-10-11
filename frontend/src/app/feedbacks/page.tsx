@@ -16,7 +16,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
 export default function FeedbacksPage() {
-  const { user, token } = useAuth(); // ✅ Changed from _user to user
+  const { user, isAuthenticated } = useAuth();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [myFeedbacks, setMyFeedbacks] = useState<Feedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +37,7 @@ export default function FeedbacksPage() {
       setIsLoading(true);
       const [approvedData, myData] = await Promise.all([
         getApprovedFeedbacks(),
-        token ? getMyFeedbacks(token) : Promise.resolve([]),
+        isAuthenticated ? getMyFeedbacks() : Promise.resolve([]),
       ]);
       setFeedbacks(approvedData);
       setMyFeedbacks(myData);
@@ -52,7 +52,7 @@ export default function FeedbacksPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error('Please log in to submit feedback');
       return;
     }
@@ -64,7 +64,7 @@ export default function FeedbacksPage() {
 
     setIsSubmitting(true);
     try {
-      await createFeedback(token, formData);
+      await createFeedback(formData);
       toast.success('Feedback submitted successfully! It will be reviewed before being published.');
       setFormData({ rating: 5, title: '', comment: '' });
       setShowForm(false);

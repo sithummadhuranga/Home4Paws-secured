@@ -84,7 +84,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,15 +100,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   useEffect(() => {
     const fetchOrder = async () => {
-      if (!token || !orderId) return;
+      if (!isAuthenticated || !orderId) return;
 
       try {
         setIsLoading(true);
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
-        
+
         const response = await fetch(`${API_BASE_URL}/orders/admin/all?search=${orderId}`, {
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
@@ -134,19 +134,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     };
 
     fetchOrder();
-  }, [token, orderId, router]);
+  }, [isAuthenticated, orderId, router]);
 
   const handleStatusUpdate = async () => {
-    if (!token || !orderId || !newStatus) return;
+    if (!isAuthenticated || !orderId || !newStatus) return;
 
     try {
       setIsUpdating(true);
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
-      
+
       const response = await fetch(`${API_BASE_URL}/orders/admin/${orderId}/status`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status: newStatus }),

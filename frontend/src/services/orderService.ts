@@ -2,28 +2,30 @@ import { Order, UserStats } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
-const getAuthHeaders = (token: string) => ({
+// The access token lives in an httpOnly cookie, so every call below pairs this
+// with credentials: 'include' instead of an Authorization header
+const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
-  'Authorization': `Bearer ${token}`
 });
 
-export const getUserOrders = async (token: string): Promise<Order[]> => {
+export const getUserOrders = async (): Promise<Order[]> => {
   try {
     console.log('📦 Fetching user orders...');
     const response = await fetch(`${API_BASE_URL}/orders/user`, {
-      headers: getAuthHeaders(token),
+      credentials: 'include',
+      headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
-        console.error('Unauthorized - Invalid or expired token');
+        console.error('Unauthorized - session expired');
         throw new Error('Please log in again');
       }
       console.error(`Failed to fetch orders: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch orders: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log('✅ Successfully loaded orders:', data.length);
     return Array.isArray(data) ? data : [];
@@ -36,23 +38,24 @@ export const getUserOrders = async (token: string): Promise<Order[]> => {
   }
 };
 
-export const getUserStats = async (token: string): Promise<UserStats> => {
+export const getUserStats = async (): Promise<UserStats> => {
   try {
     console.log('📊 Fetching user stats...');
     const response = await fetch(`${API_BASE_URL}/orders/user/stats`, {
-      headers: getAuthHeaders(token),
+      credentials: 'include',
+      headers: getAuthHeaders(),
       cache: 'no-store',
     });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
-        console.error('Unauthorized - Invalid or expired token');
+        console.error('Unauthorized - session expired');
         throw new Error('Please log in again');
       }
       console.error(`Failed to fetch stats: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch stats: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log('✅ Successfully loaded stats');
     return data;
@@ -65,28 +68,30 @@ export const getUserStats = async (token: string): Promise<UserStats> => {
   }
 };
 
-export const createOrder = async (token: string, orderData: unknown): Promise<Order> => {
+export const createOrder = async (orderData: unknown): Promise<Order> => {
   const response = await fetch(`${API_BASE_URL}/orders`, {
     method: 'POST',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
     body: JSON.stringify(orderData),
   });
-  
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     console.error('Failed to create order:', errorData);
     throw new Error(errorData.message || 'Failed to create order');
   }
-  
+
   return await response.json();
 };
 
-export const cancelOrder = async (token: string, orderId: number): Promise<void> => {
+export const cancelOrder = async (orderId: number): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/orders/${orderId}/cancel`, {
     method: 'PATCH',
-    headers: getAuthHeaders(token),
+    credentials: 'include',
+    headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) {
     throw new Error('Failed to cancel order');
   }

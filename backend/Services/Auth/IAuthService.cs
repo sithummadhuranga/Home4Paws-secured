@@ -6,8 +6,8 @@ namespace Home4Paws.API.Services.Auth
     {
         Task<AuthResponse> LoginAsync(LoginRequest request, string ipAddress);
         Task<AuthResponse> SignupAsync(SignupRequest request, string ipAddress);
-        Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request, string ipAddress);
-        Task<LogoutResponse> LogoutAsync(LogoutRequest request);
+        Task<AuthResponse> RefreshTokenAsync(string refreshToken, string ipAddress);
+        Task<LogoutResponse> LogoutAsync(string? refreshToken, bool logoutFromAllDevices);
         Task<UserInfo?> GetUserInfoAsync(int userId);
         Task<bool> CleanupExpiredSessionsAsync();
     }

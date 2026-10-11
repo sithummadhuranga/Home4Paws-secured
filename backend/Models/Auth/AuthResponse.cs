@@ -19,6 +19,7 @@
         public bool EmailVerified { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
+        public string AuthProvider { get; set; } = "Local";
     }
 
     public class TokenInfo

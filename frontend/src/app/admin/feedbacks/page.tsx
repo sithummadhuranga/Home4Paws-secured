@@ -56,7 +56,7 @@ interface FeedbackStats {
 }
 
 export default function AdminFeedbacksPage() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [filteredFeedbacks, setFilteredFeedbacks] = useState<Feedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,13 +72,13 @@ export default function AdminFeedbacksPage() {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5185/api';
 
   const loadFeedbacks = useCallback(async () => {
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     try {
       setIsLoading(true);
       const response = await fetch(`${API_BASE_URL}/feedbacks/admin/all`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -106,7 +106,7 @@ export default function AdminFeedbacksPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [token, API_BASE_URL]);
+  }, [isAuthenticated, API_BASE_URL]);
 
   const filterFeedbacksByStatus = useCallback(() => {
     let filtered = [...feedbacks];
@@ -138,13 +138,13 @@ export default function AdminFeedbacksPage() {
   }, [filterFeedbacksByStatus]);
 
   const updateFeedbackStatus = async (id: number, isApproved: boolean, isFeatured: boolean) => {
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/feedbacks/${id}/status`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ isApproved, isFeatured }),
@@ -184,16 +184,14 @@ export default function AdminFeedbacksPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!token) return;
-    
+    if (!isAuthenticated) return;
+
     if (!confirm('Are you sure you want to delete this feedback?')) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/feedbacks/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       if (!response.ok) {

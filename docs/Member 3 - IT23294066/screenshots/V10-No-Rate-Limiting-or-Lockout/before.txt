@@ -1,0 +1,12 @@
+attempt 1 -> HTTP 400
+attempt 2 -> HTTP 400
+attempt 3 -> HTTP 400
+attempt 4 -> HTTP 400
+attempt 5 -> HTTP 400
+attempt 6 -> HTTP 400
+attempt 7 -> HTTP 400
+attempt 8 -> HTTP 400
+attempt 9 -> HTTP 400
+attempt 10 -> HTTP 400
+attempt 11 -> HTTP 400
+attempt 12 -> HTTP 400

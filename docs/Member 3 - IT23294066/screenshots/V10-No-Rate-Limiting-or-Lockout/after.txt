@@ -1,0 +1,8 @@
+attempt 1 -> HTTP 400 "message":"Invalid email or password."
+attempt 2 -> HTTP 400 "message":"Invalid email or password."
+attempt 3 -> HTTP 400 "message":"Invalid email or password."
+attempt 4 -> HTTP 400 "message":"Invalid email or password."
+attempt 5 -> HTTP 400 "message":"Invalid email or password."
+attempt 6 -> HTTP 400 "message":"Too many failed attempts. Try again in 15 minute(s)."
+attempt 7 -> HTTP 400 "message":"Too many failed attempts. Try again in 15 minute(s)."
+attempt 8 -> HTTP 400 "message":"Too many failed attempts. Try again in 15 minute(s)."

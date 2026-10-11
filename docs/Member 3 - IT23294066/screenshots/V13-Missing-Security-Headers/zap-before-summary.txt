@@ -1,0 +1,13 @@
+ZAP baseline scan - BEFORE fix
+
+Frontend (http://localhost:3000):
+WARN-NEW: Content Security Policy (CSP) Header Not Set [10038] x 5
+WARN-NEW: Permissions Policy Header Not Set [10063] x 5
+WARN-NEW: Cross-Origin-Embedder-Policy Header Missing or Invalid [90004] x 7
+(full detail: zap-frontend-before.html)
+
+Backend API (http://localhost:5185/api/info):
+WARN-NEW: X-Content-Type-Options Header Missing [10021] x 1
+WARN-NEW: Storable and Cacheable Content [10049] x 4
+WARN-NEW: Cross-Origin-Resource-Policy Header Missing or Invalid [90004] x 1
+(full detail: zap-backend-before.html)

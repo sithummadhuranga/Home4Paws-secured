@@ -32,7 +32,7 @@ interface ProductFormProps {
 
 export function ProductForm({ categories, existingProduct }: ProductFormProps) {
   const router = useRouter();
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = !!existingProduct;
 
@@ -76,7 +76,7 @@ export function ProductForm({ categories, existingProduct }: ProductFormProps) {
   const isActive = watch("isActive");
 
   const onSubmit = async (data: any) => {
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error("You must be logged in to perform this action");
       return;
     }
@@ -85,10 +85,10 @@ export function ProductForm({ categories, existingProduct }: ProductFormProps) {
 
     try {
       if (isEditMode && existingProduct) {
-        await updateProduct(existingProduct.id, data, token);
+        await updateProduct(existingProduct.id, data);
         toast.success("Product updated successfully!");
       } else {
-        await createProduct(data, token);
+        await createProduct(data);
         toast.success("Product created successfully!");
       }
       router.push("/admin/products");
